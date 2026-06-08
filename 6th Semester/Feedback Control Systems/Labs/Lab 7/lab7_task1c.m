@@ -1,0 +1,12 @@
+t = 0:0.01:10;
+figure;
+step(F,t); 
+hold on;
+step(G,t);
+step(H,t);
+legend('F (Undamped)', 'G (Underdamped)', 'H (Critically Damped)');
+title('Step Response');
+xlabel('Time'); 
+ylabel('Amplitude');
+grid on; 
+hold off;
