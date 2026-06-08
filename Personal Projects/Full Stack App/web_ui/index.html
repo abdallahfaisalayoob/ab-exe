@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>XYZ Laser Engraver Web UI</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Browser-based test console</p>
+          <h1>XYZ Laser Engraver UI</h1>
+          <p class="subcopy">
+            Draw paths, generate motion-safe G-code, and stream to the Arduino controller through Web Serial.
+          </p>
+        </div>
+        <div class="status-card">
+          <span id="connectionStatus" class="status-dot"></span>
+          <div>
+            <strong id="connectionText">Disconnected</strong>
+            <small id="supportText">Checking Web Serial support...</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="panel draw-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Draw</h2>
+              <p>Use a mouse or trackpad. Each stroke becomes a laser-on toolpath.</p>
+            </div>
+            <button id="clearBtn" class="ghost">Clear</button>
+          </div>
+          <canvas id="drawCanvas" width="900" height="560"></canvas>
+        </div>
+
+        <aside class="side">
+          <div class="panel controls">
+            <h2>Job Settings</h2>
+            <div class="grid">
+              <label>
+                Work W mm
+                <input id="workWidth" type="number" min="1" step="1" value="120">
+              </label>
+              <label>
+                Work H mm
+                <input id="workHeight" type="number" min="1" step="1" value="80">
+              </label>
+              <label>
+                Engrave F
+                <input id="engraveFeed" type="number" min="1" step="10" value="500">
+              </label>
+              <label>
+                Travel F
+                <input id="travelFeed" type="number" min="1" step="10" value="1200">
+              </label>
+              <label>
+                Laser S
+                <input id="laserPower" type="number" min="0" max="1000" step="10" value="250">
+              </label>
+              <label>
+                Safe Z
+                <input id="safeZ" type="number" min="0" step="0.1" value="5">
+              </label>
+              <label>
+                Focus Z
+                <input id="focusZ" type="number" min="0" step="0.1" value="0">
+              </label>
+              <label>
+                Baud
+                <input id="baudRate" type="number" min="9600" step="1" value="115200">
+              </label>
+            </div>
+            <div class="button-row">
+              <button id="generateBtn">Generate</button>
+              <button id="downloadBtn" class="ghost">Download</button>
+            </div>
+          </div>
+
+          <div class="panel controls">
+            <h2>Machine</h2>
+            <div class="button-row">
+              <button id="connectBtn">Connect</button>
+              <button id="statusBtn" class="ghost">Status</button>
+            </div>
+            <div class="button-row">
+              <button id="armBtn" class="warn">ARM</button>
+              <button id="disarmBtn" class="ghost">DISARM</button>
+            </div>
+            <div class="button-row">
+              <button id="resetBtn" class="ghost">RESET</button>
+              <button id="stopBtn" class="danger">M112 Stop</button>
+            </div>
+            <button id="streamBtn" class="full">Stream G-code</button>
+            <p class="note">
+              Web Serial works in Chrome/Edge on localhost or HTTPS. Test motion with the laser disconnected first.
+            </p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="lower">
+        <div class="panel code-panel">
+          <div class="panel-header">
+            <div>
+              <h2>G-code</h2>
+              <p id="lineCount">No generated lines.</p>
+            </div>
+          </div>
+          <textarea id="gcodeBox" spellcheck="false"></textarea>
+        </div>
+        <div class="panel log-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Serial Log</h2>
+              <p id="progressText">Idle</p>
+            </div>
+            <button id="clearLogBtn" class="ghost">Clear Log</button>
+          </div>
+          <pre id="logBox"></pre>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

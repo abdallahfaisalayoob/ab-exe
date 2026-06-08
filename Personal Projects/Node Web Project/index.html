@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI PCB Terminal Printer</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Frontend Prototype</p>
+        <h1>AI Circuit Terminal Printer</h1>
+        <p class="hero-copy">
+          Type commands, paste JSON circuits, and watch a laser plotter trace the board in real time.
+        </p>
+      </div>
+      <div class="hero-status">
+        <span class="status-pill" id="statusPill">Idle</span>
+        <button id="loadDemoButton" class="ghost-button" type="button">Load demo</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="terminal-panel">
+        <div class="panel-header">
+          <h2>Terminal</h2>
+          <span>Commands: <code>help</code>, <code>load_circuit</code>, <code>clear</code>, <code>save</code>, <code>simulate</code></span>
+        </div>
+
+        <div id="terminalOutput" class="terminal-output" aria-live="polite"></div>
+
+        <label class="prompt-shell" for="terminalInput">
+          <span class="prompt-label">pcb&gt;</span>
+          <textarea
+            id="terminalInput"
+            class="terminal-input"
+            rows="3"
+            spellcheck="false"
+            placeholder='Paste JSON or type: load_circuit {"components":[{"type":"line","x1":10,"y1":10,"x2":220,"y2":10}]}'
+          ></textarea>
+        </label>
+
+        <div class="terminal-actions">
+          <button id="runCommandButton" type="button">Run Command</button>
+          <p>Press <kbd>Enter</kbd> to submit and <kbd>Shift</kbd> + <kbd>Enter</kbd> for a new line.</p>
+        </div>
+      </section>
+
+      <section class="canvas-panel">
+        <div class="panel-header">
+          <h2>PCB Canvas</h2>
+          <span id="canvasCaption">Waiting for a circuit definition.</span>
+        </div>
+
+        <div class="canvas-shell">
+          <canvas id="pcbCanvas" width="960" height="640"></canvas>
+          <div class="canvas-overlay">
+            <p>Laser plotter view</p>
+            <p>Permanent copper traces appear behind the beam as each segment completes.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
