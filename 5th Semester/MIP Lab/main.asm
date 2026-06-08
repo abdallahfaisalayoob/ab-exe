@@ -1,0 +1,367 @@
+start:
+.equ LCD_PORT      = PORTd
+.equ LCD_DIRECTION = DDRd
+.equ LCD_INPUT     = PINd
+.equ LCD_RS        = 0
+.equ LCD_RW        = 1
+.equ LCD_EN        = 2
+
+;-------------------------------------------------
+; INITIALIZATION
+;-------------------------------------------------
+LDI R21, 0xFF
+OUT LCD_DIRECTION, R21          ; LCD port as output
+CALL DELAY_2ms
+
+LDI R16, HIGH(RAMEND)
+OUT SPH, R16
+LDI R16, LOW(RAMEND)
+OUT SPL, R16
+
+CBI DDRA, 0                     ; PA0 ADC0 input (LM35)
+CBI DDRA, 1                     ; PA1 ADC1 input (heart rate)
+
+; ADC enable, prescaler 128
+LDI R16, (1<<ADEN) | (1<<ADPS2) | (1<<ADPS1) | (1<<ADPS0)
+OUT ADCSRA, R16
+
+;-------------------------------------------------
+; ADC Reference = AVCC (5V), Left adjust, channel 0 (ADC0)
+;-------------------------------------------------
+LDI R16, (1<<REFS0) | (1<<ADLAR)    ; AVCC, left adjust, MUX=0
+OUT ADMUX, R16
+
+CALL DELAY_2ms
+CALL DELAY_2ms
+
+;-------------------------------------------------
+; LCD INIT
+;-------------------------------------------------
+LDI R16, 0x33
+CALL CMNDWRT
+CALL DELAY_2ms
+LDI R16, 0x32
+CALL CMNDWRT
+CALL DELAY_2ms
+LDI R16, 0x28
+CALL CMNDWRT
+CALL DELAY_2ms
+LDI R16, 0x0E
+CALL CMNDWRT
+CALL DELAY_2ms
+LDI R16, 0x01
+CALL CMNDWRT
+CALL DELAY_2ms
+LDI R16, 0x06
+CALL CMNDWRT
+CALL DELAY_2ms
+LDI R16, 0x01
+CALL CMNDWRT
+CALL DELAY_2ms
+
+;-------------------------------------------------
+; PRINT "TEMPERATURE: " ON FIRST LINE
+;-------------------------------------------------
+LDI R16, 0x80
+CALL CMNDWRT
+CALL DELAY_2ms
+
+LDI R16, 'T'  ; TEMPERATURE:
+CALL DATAWRT
+LDI R16, 'E'
+CALL DATAWRT
+LDI R16, 'M'
+CALL DATAWRT
+LDI R16, 'P'
+CALL DATAWRT
+LDI R16, 'E'
+CALL DATAWRT
+LDI R16, 'R'
+CALL DATAWRT
+LDI R16, 'A'
+CALL DATAWRT
+LDI R16, 'T'
+CALL DATAWRT
+LDI R16, 'U'
+CALL DATAWRT
+LDI R16, 'R'
+CALL DATAWRT
+LDI R16, 'E'
+CALL DATAWRT
+LDI R16, ':'
+CALL DATAWRT
+LDI R16, ' '
+CALL DATAWRT
+
+;-------------------------------------------------
+; PRINT "HR: " ON SECOND LINE
+;-------------------------------------------------
+LDI R16, 0xC0
+CALL CMNDWRT
+CALL DELAY_2ms
+
+LDI R16, 'H'
+CALL DATAWRT
+LDI R16, 'R'
+CALL DATAWRT
+LDI R16, ':'
+CALL DATAWRT
+LDI R16, ' '
+CALL DATAWRT
+
+
+;-------------------------------------------------
+; MAIN LOOP
+;-------------------------------------------------
+READ_ADC:
+
+;---------------------------------------
+; READ TEMPERATURE FROM ADC0 (LM35)
+;---------------------------------------
+; Select ADC0 with AVCC reference
+LDI R16, (1<<REFS0)|(1<<ADLAR)|0     ; MUX = 0
+OUT ADMUX, R16
+
+SBI ADCSRA, ADSC          ; Start conversion
+
+REPEAT_TEMP:
+SBIS ADCSRA, ADIF
+RJMP REPEAT_TEMP
+CBI ADCSRA, ADIF
+
+IN R16, ADCH              ; read 8-bit value
+LDI R17, 10
+CP R16, R17
+BRLO TEMP_SMALL
+RCALL CONVERSION
+
+TEMP_SMALL:
+MOV R20, R16
+
+; Display temperature (two digits)
+LDI R16, 0x8C
+CALL CMNDWRT
+CALL DELAY_2ms
+
+MOV R16, R20
+SWAP R16
+RCALL HEX_TO_DEC
+CALL DATAWRT
+
+LDI R16, 0x8D
+CALL CMNDWRT
+CALL DELAY_2ms
+
+MOV R16, R20
+RCALL HEX_TO_DEC
+CALL DATAWRT
+
+
+;---------------------------------------
+; READ HEART RATE SIGNAL FROM ADC1
+;---------------------------------------
+; Select ADC1 with AVCC reference
+LDI R16, (1<<REFS0)|(1<<ADLAR)|1     ; MUX = 1
+OUT ADMUX, R16
+
+SBI ADCSRA, ADSC          ; Start conversion
+
+REPEAT_HR:
+SBIS ADCSRA, ADIF
+RJMP REPEAT_HR
+CBI ADCSRA, ADIF
+
+IN R16, ADCH              ; 8-bit pulse reading
+
+; convert 0–255 to ASCII digits
+RCALL BIN_TO_DEC3
+
+; Display HR on second line
+LDI R16, 0xC3
+CALL CMNDWRT
+CALL DELAY_2ms
+
+MOV R16, R18
+CALL DATAWRT
+MOV R16, R19
+CALL DATAWRT
+MOV R16, R20
+CALL DATAWRT
+
+RJMP READ_ADC
+
+
+;-------------------------------------------------
+; SUBROUTINES
+;-------------------------------------------------
+
+HEX_TO_DEC:
+LDI R17, 0x0F
+AND R16, R17
+LDI R17, '0'
+ADD R16, R17
+RET
+
+CONVERSION:
+MOV R20, R16
+LDI R18, 6
+LOOP:
+SUB R20, R17
+ADD R16, R18
+CP R20, R17
+BRSH LOOP
+RET
+
+
+;---------------------------------------------
+; NEW: BIN ? DECIMAL (hundreds/tens/ones)
+;---------------------------------------------
+BIN_TO_DEC3:
+CLR R18
+CLR R19
+LDI R17, 100
+B1:
+CP R16, R17
+BRLO B2
+SUB R16, R17
+INC R18
+RJMP B1
+
+B2:
+LDI R17, 10
+B3:
+CP R16, R17
+BRLO B4
+SUB R16, R17
+INC R19
+RJMP B3
+
+B4:
+; R16 = ones
+LDI R17, '0'
+ADD R16, R17
+MOV R20, R16
+ADD R18, R17
+ADD R19, R17
+RET
+
+
+;-------------------------------------------------
+; LCD + DELAY ROUTINES (unchanged)
+;-------------------------------------------------
+DELAY:
+PUSH R16
+LDI R16, HIGH(18661)
+OUT TCNT1H, R16
+LDI R16, LOW(18661)
+OUT TCNT1L, R16
+LDI R16, 0
+OUT TCCR1A, R16
+LDI R16, 5
+OUT TCCR1B, R16
+AGAIN1:
+IN R16, TIFR
+SBRS R16, TOV1
+RJMP AGAIN1
+LDI R16, (1 << TOV1)
+OUT TIFR, R16
+LDI R16, 0
+OUT TCCR1A, R16
+OUT TCCR1B, R16
+POP R16
+RET
+
+CMNDWRT:
+MOV R27, R16
+ANDI R27, 0xF0
+IN R26, LCD_PORT
+ANDI R26, 0x0F
+OR R26, R27
+OUT LCD_PORT, R26
+CBI LCD_PORT, LCD_RS
+CBI LCD_PORT, LCD_RW
+SBI LCD_PORT, LCD_EN
+CALL SDELAY
+CBI LCD_PORT, LCD_EN
+CALL DELAY_100us
+MOV R27, R16
+SWAP R27
+ANDI R27, 0xF0
+IN R26, LCD_PORT
+ANDI R26, 0x0F
+OR R26, R27
+OUT LCD_PORT, R26
+SBI LCD_PORT, LCD_EN
+CALL SDELAY
+CBI LCD_PORT, LCD_EN
+CALL DELAY_100us
+RET
+
+DATAWRT:
+MOV R27, R16
+ANDI R27, 0xF0
+IN R26, LCD_PORT
+ANDI R26, 0x0F
+OR R26, R27
+OUT LCD_PORT, R26
+SBI LCD_PORT, LCD_RS
+CBI LCD_PORT, LCD_RW
+SBI LCD_PORT, LCD_EN
+CALL SDELAY
+CBI LCD_PORT, LCD_EN
+MOV R27, R16
+SWAP R27
+ANDI R27, 0xF0
+IN R26, LCD_PORT
+ANDI R26, 0x0F
+OR R26, R27
+OUT LCD_PORT, R26
+SBI LCD_PORT, LCD_EN
+CALL SDELAY
+CBI LCD_PORT, LCD_EN
+CALL DELAY_100us
+RET
+
+DELAY1:
+LDI R17, 0x85
+OUT TCNT1H, R17
+LDI R17, 0xEE
+OUT TCNT1L, R17
+LDI R17, 0x00
+OUT TCCR1A, R17
+LDI R17, 0x04
+OUT TCCR1B, R17
+AGAIN2:
+IN R17, TIFR
+SBRS R17, TOV1
+RJMP AGAIN2
+LDI R17, 0x00
+OUT TCCR1B, R17
+LDI R17, (1 << TOV1)
+OUT TIFR, R17
+RET
+
+SDELAY:
+NOP
+NOP
+RET
+
+DELAY_100us:
+PUSH R17
+LDI R17, 60
+DRO:
+CALL SDELAY
+DEC R17
+BRNE DRO
+POP R17
+RET
+
+DELAY_2ms:
+PUSH R17
+LDI R17, 20
+LDRO:
+CALL DELAY_100us
+DEC R17
+BRNE LDRO
+POP R17
+RET
