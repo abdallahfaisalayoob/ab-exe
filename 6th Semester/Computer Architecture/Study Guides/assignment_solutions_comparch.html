@@ -1,0 +1,163 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); color: var(--color-text-primary); }
+  .wrap { padding: 1.5rem 0; max-width: 680px; }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 1.5rem; color: var(--color-text-primary); }
+  .section { margin-bottom: 2rem; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+  .section-header { background: var(--color-background-secondary); padding: 10px 16px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px; }
+  .qnum { background: #185FA5; color: #E6F1FB; border-radius: 6px; font-size: 12px; font-weight: 500; padding: 2px 8px; }
+  .section-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+  .section-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+  .part { border-left: 2px solid var(--color-border-secondary); padding-left: 12px; }
+  .part-label { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .answer { font-size: 14px; line-height: 1.7; color: var(--color-text-primary); }
+  .answer code { font-family: var(--font-mono); font-size: 13px; background: var(--color-background-secondary); padding: 1px 5px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  th { background: var(--color-background-secondary); font-weight: 500; padding: 6px 8px; text-align: left; border-bottom: 0.5px solid var(--color-border-secondary); }
+  td { padding: 5px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); vertical-align: top; }
+  .hit { color: #0F6E56; font-weight: 500; }
+  .miss { color: #A32D2D; font-weight: 500; }
+  .state-box { display: inline-block; font-family: var(--font-mono); font-size: 12px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-secondary); border-radius: 4px; padding: 1px 5px; }
+  .formula { font-family: var(--font-mono); font-size: 13px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 6px; padding: 8px 12px; margin-top: 4px; line-height: 1.8; }
+  .highlight { background: #FAEEDA; color: #633806; padding: 6px 10px; border-radius: 6px; font-size: 13px; margin-top: 6px; }
+  .mispred { background: #FCEBEB; color: #791F1F; padding: 6px 10px; border-radius: 6px; font-size: 13px; display: inline-block; margin-top: 6px; }
+</style>
+<div class="wrap">
+
+<div class="section">
+  <div class="section-header">
+    <span class="qnum">Q1</span>
+    <span class="section-title">1-bit vs 2-bit Branch Predictor — Pattern: T, NT, T, NT, T (×3)</span>
+  </div>
+  <div class="section-body">
+    <div class="part">
+      <div class="part-label">(a) 1-bit predictor — iteration 1 trace + total mispredictions</div>
+      <div class="answer">Starting state: <span class="state-box">NT (predict Not-Taken)</span>. Rule: flip state on any misprediction.</div>
+      <table>
+        <tr><th>#</th><th>Predict</th><th>Outcome</th><th>Result</th><th>Next state</th></tr>
+        <tr><td>1</td><td>NT</td><td>T</td><td class="miss">Miss</td><td><span class="state-box">T</span></td></tr>
+        <tr><td>2</td><td>T</td><td>NT</td><td class="miss">Miss</td><td><span class="state-box">NT</span></td></tr>
+        <tr><td>3</td><td>NT</td><td>T</td><td class="miss">Miss</td><td><span class="state-box">T</span></td></tr>
+        <tr><td>4</td><td>T</td><td>NT</td><td class="miss">Miss</td><td><span class="state-box">NT</span></td></tr>
+        <tr><td>5</td><td>NT</td><td>T</td><td class="miss">Miss</td><td><span class="state-box">T</span></td></tr>
+      </table>
+      <div class="answer" style="margin-top:8px;">Iteration 1 ends in state T. Iterations 2 & 3 start with T → each gives <strong>4 misses</strong> (hits only on the first T).</div>
+      <div class="mispred">Total mispredictions: 5 + 4 + 4 = <strong>13 out of 15</strong></div>
+    </div>
+
+    <div class="part">
+      <div class="part-label">(b) 2-bit saturating counter — starting Weakly Not-Taken (WN)</div>
+      <div class="answer">States: SN → WN → WT → ST. Predict NT if in SN/WN, predict T if in WT/ST.</div>
+      <table>
+        <tr><th>Iteration</th><th>Outcome</th><th>State before</th><th>Predict</th><th>Result</th><th>State after</th></tr>
+        <tr><td rowspan="5" style="font-weight:500;">1</td><td>T</td><td>WN</td><td>NT</td><td class="miss">Miss</td><td>WT</td></tr>
+        <tr><td>NT</td><td>WT</td><td>T</td><td class="miss">Miss</td><td>WN</td></tr>
+        <tr><td>T</td><td>WN</td><td>NT</td><td class="miss">Miss</td><td>WT</td></tr>
+        <tr><td>NT</td><td>WT</td><td>T</td><td class="miss">Miss</td><td>WN</td></tr>
+        <tr><td>T</td><td>WN</td><td>NT</td><td class="miss">Miss</td><td>WT</td></tr>
+        <tr><td rowspan="5" style="font-weight:500;">2</td><td>T</td><td>WT</td><td>T</td><td class="hit">Hit</td><td>ST</td></tr>
+        <tr><td>NT</td><td>ST</td><td>T</td><td class="miss">Miss</td><td>WT</td></tr>
+        <tr><td>T</td><td>WT</td><td>T</td><td class="hit">Hit</td><td>ST</td></tr>
+        <tr><td>NT</td><td>ST</td><td>T</td><td class="miss">Miss</td><td>WT</td></tr>
+        <tr><td>T</td><td>WT</td><td>T</td><td class="hit">Hit</td><td>ST</td></tr>
+        <tr><td rowspan="5" style="font-weight:500;">3</td><td>T</td><td>ST</td><td>T</td><td class="hit">Hit</td><td>ST</td></tr>
+        <tr><td>NT</td><td>ST</td><td>T</td><td class="miss">Miss</td><td>WT</td></tr>
+        <tr><td>T</td><td>WT</td><td>T</td><td class="hit">Hit</td><td>ST</td></tr>
+        <tr><td>NT</td><td>ST</td><td>T</td><td class="miss">Miss</td><td>WT</td></tr>
+        <tr><td>T</td><td>WT</td><td>T</td><td class="hit">Hit</td><td>ST</td></tr>
+      </table>
+      <div class="mispred">Total mispredictions: 5 + 2 + 2 = <strong>9 out of 15</strong></div>
+    </div>
+
+    <div class="part">
+      <div class="part-label">(c) Which predictor is better and why?</div>
+      <div class="answer">The <strong>2-bit predictor</strong> performs significantly better (9 vs 13 mispredictions). Because it requires two consecutive wrong predictions before switching its prediction, it stabilizes after iteration 1 and correctly predicts all three T outcomes per cycle. The 1-bit predictor flips on every single branch, so it mispredicts almost constantly on this alternating T/NT pattern.</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <span class="qnum">Q2</span>
+    <span class="section-title">RISC-V 5-stage pipeline exception handling</span>
+  </div>
+  <div class="section-body">
+    <div class="part">
+      <div class="part-label">(a) Which instructions are flushed?</div>
+      <div class="answer">When <code>add x1, x2, x1</code> at <code>0x48</code> is in the EX stage and the malfunction is detected, the pipeline state is:</div>
+      <table>
+        <tr><th>Stage</th><th>Instruction</th><th>Action</th></tr>
+        <tr><td>EX</td><td>add x1, x2, x1 (0x48)</td><td>Faulting — triggers exception</td></tr>
+        <tr><td>ID</td><td>lw x15, 0(x6) (0x4C)</td><td class="miss">Flushed</td></tr>
+        <tr><td>IF</td><td>or x13, x2, x6 (0x50)</td><td class="miss">Flushed</td></tr>
+      </table>
+      <div class="answer" style="margin-top:8px;">Instructions at <code>0x4C</code> and <code>0x50</code> are flushed because they entered the pipeline after the faulting instruction and have not yet committed any state. Flushing prevents them from completing with invalid data. The processor then jumps to the exception handler.</div>
+    </div>
+
+    <div class="part">
+      <div class="part-label">(b) SEPC and SCAUSE registers</div>
+      <table>
+        <tr><th>Register</th><th>Value stored</th><th>Purpose</th></tr>
+        <tr><td><strong>SEPC</strong></td><td><code>0x48</code> (PC of add)</td><td>Saves the address of the instruction that caused the exception. Used to resume or retry execution after the handler completes.</td></tr>
+        <tr><td><strong>SCAUSE</strong></td><td>Exception code for hardware fault</td><td>Identifies the type and cause of the exception so the handler knows how to respond (e.g., retry, report error, or terminate).</td></tr>
+      </table>
+    </div>
+
+    <div class="part">
+      <div class="part-label">(c) Which instruction resumes after the handler?</div>
+      <div class="answer">Execution resumes at address <code>0x48</code> (the <code>add</code> instruction), because SEPC holds the PC of the faulting instruction itself. The <code>SRET</code> instruction restores the PC from SEPC, re-fetching and re-executing <code>add x1, x2, x1</code>. This allows the processor to retry the instruction assuming the hardware issue was transient or has been resolved by the handler.</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <span class="qnum">Q3</span>
+    <span class="section-title">Direct-mapped cache — 32-bit addr, 32 blocks, 16 bytes/block</span>
+  </div>
+  <div class="section-body">
+    <div class="part">
+      <div class="part-label">(a) Address field bit widths</div>
+      <div class="formula">
+        Block offset  = log₂(16 bytes) = <strong>4 bits</strong><br>
+        Index         = log₂(32 blocks) = <strong>5 bits</strong><br>
+        Tag           = 32 − 4 − 5     = <strong>23 bits</strong>
+      </div>
+      <div class="answer" style="margin-top:8px;">Address layout: [ Tag: 23 bits | Index: 5 bits | Offset: 4 bits ]</div>
+    </div>
+
+    <div class="part">
+      <div class="part-label">(b) Total cache memory size in bits</div>
+      <div class="formula">
+        Per block = data bits + tag bits + valid bit<br>
+                  = (16 × 8) + 23 + 1 = 128 + 23 + 1 = <strong>152 bits</strong><br><br>
+        Total     = 32 blocks × 152 bits/block = <strong>4,864 bits</strong>
+      </div>
+    </div>
+
+    <div class="part">
+      <div class="part-label">(c) Access trace — word addresses (4 bytes/word) → byte = word × 4</div>
+      <div class="answer" style="margin-bottom:6px;">Index = ⌊byte_addr / 16⌋ mod 32 &nbsp;|&nbsp; Tag = ⌊byte_addr / 512⌋</div>
+      <table>
+        <tr><th>Access</th><th>Word addr</th><th>Byte addr</th><th>Index</th><th>Tag</th><th>Result</th><th>Cache[index] after</th></tr>
+        <tr><td>1</td><td>4</td><td>16</td><td>1</td><td>0</td><td class="miss">Miss</td><td>tag=0</td></tr>
+        <tr><td>2</td><td>132</td><td>528</td><td>1</td><td>1</td><td class="miss">Miss (evicts tag 0)</td><td>tag=1</td></tr>
+        <tr><td>3</td><td>68</td><td>272</td><td>17</td><td>0</td><td class="miss">Miss</td><td>tag=0</td></tr>
+        <tr><td>4</td><td>4</td><td>16</td><td>1</td><td>0</td><td class="miss">Miss (evicts tag 1)</td><td>tag=0</td></tr>
+        <tr><td>5</td><td>196</td><td>784</td><td>17</td><td>1</td><td class="miss">Miss (evicts tag 0)</td><td>tag=1</td></tr>
+        <tr><td>6</td><td>68</td><td>272</td><td>17</td><td>0</td><td class="miss">Miss (evicts tag 1)</td><td>tag=0</td></tr>
+        <tr><td>7</td><td>132</td><td>528</td><td>1</td><td>1</td><td class="miss">Miss (evicts tag 0)</td><td>tag=1</td></tr>
+        <tr><td>8</td><td>4</td><td>16</td><td>1</td><td>0</td><td class="miss">Miss (evicts tag 1)</td><td>tag=0</td></tr>
+      </table>
+      <div class="mispred">All 8 accesses are Misses — 0 hits.</div>
+    </div>
+
+    <div class="part">
+      <div class="part-label">(d) Phenomenon causing repeated misses — Cache Thrashing (Conflict Misses)</div>
+      <div class="answer">The phenomenon is called <strong>cache thrashing</strong> (or <strong>ping-ponging</strong>), a type of conflict miss. In a direct-mapped cache, every memory address maps to exactly one cache line determined solely by its index bits. Addresses 4 and 132 both map to <strong>index 1</strong> (with different tags), and addresses 68 and 196 both map to <strong>index 17</strong>. Whenever one address is loaded, it evicts the other. Since the access pattern alternates between the two conflicting addresses, every access finds the needed block missing — it was just evicted by the previous access. This would not occur in a 2-way set-associative cache, where both blocks could reside in the same set simultaneously.</div>
+    </div>
+  </div>
+</div>
+
+</div>
