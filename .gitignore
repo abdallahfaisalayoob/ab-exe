@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+dist/
+.npm/
+
+# MATLAB
+*.asv
+*.m~
+
+# OS / editors
+.DS_Store
+Thumbs.db
+desktop.ini
+*.suo
+.vscode/
+.idea/
+
+# Build outputs
+*.o
+*.out
+*.exe
+*.dll
