@@ -1,0 +1,6 @@
+# Full mode (neural detectors). Fast mode needs nothing beyond Python 3.9+.
+torch>=2.1
+transformers>=4.40
+# training scripts only
+numpy
+pyarrow

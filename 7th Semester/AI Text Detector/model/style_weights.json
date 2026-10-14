@@ -1,0 +1,301 @@
+{
+ "trained_on": "HC3 (human vs ChatGPT-2022 answers) + HAP-E (human vs GPT-4o / GPT-4o-mini / Llama-3-70B-Instruct continuations)",
+ "feature_names": [
+  "sent_len_mean",
+  "sent_len_cv",
+  "sent_len_short",
+  "avg_word_len",
+  "long_word_ratio",
+  "mattr",
+  "contraction_rate",
+  "first_person_rate",
+  "informal_rate",
+  "lowercase_i",
+  "exclaim_q_rate",
+  "paren_rate",
+  "comma_per_sent",
+  "ai_vocab_rate",
+  "ai_phrase_rate",
+  "transition_rate",
+  "hedge_rate",
+  "triplet_rate",
+  "participle_rate",
+  "emdash_rate",
+  "contrast_rate",
+  "markdown_rate",
+  "opener_repeat",
+  "the_it_start"
+ ],
+ "mean": [
+  21.15395,
+  0.439206,
+  0.09411,
+  4.75772,
+  0.164758,
+  0.787381,
+  1.380915,
+  1.043794,
+  0.575578,
+  0.11746,
+  0.044454,
+  0.112213,
+  1.18691,
+  0.364076,
+  0.185353,
+  0.047365,
+  1.799673,
+  0.115099,
+  0.008546,
+  0.058286,
+  0.001837,
+  0.000698,
+  0.23501,
+  0.225777
+ ],
+ "std": [
+  9.592384,
+  0.220765,
+  0.153789,
+  0.514558,
+  0.076535,
+  0.059763,
+  1.784414,
+  1.990588,
+  1.029217,
+  0.552225,
+  0.094564,
+  0.462551,
+  0.934685,
+  0.698406,
+  0.385203,
+  0.093202,
+  1.64107,
+  0.177408,
+  0.036654,
+  0.330735,
+  0.011363,
+  0.015251,
+  0.175609,
+  0.204423
+ ],
+ "weights": [
+  -0.518249,
+  -1.255294,
+  -0.015864,
+  -0.019326,
+  0.216173,
+  -0.393182,
+  0.311859,
+  -0.26342,
+  -0.120759,
+  -0.339952,
+  0.59383,
+  -1.758534,
+  0.479069,
+  0.789134,
+  1.175666,
+  0.284179,
+  0.465078,
+  0.037207,
+  0.128979,
+  -1.451246,
+  0.113604,
+  -0.02016,
+  0.749161,
+  0.346583
+ ],
+ "bias": 0.400936,
+ "evaluation": [
+  {
+   "model": "stylometric",
+   "n": 3269,
+   "accuracy": 0.8489,
+   "auc": 0.9208,
+   "false_positive_rate": 0.1708,
+   "false_negative_rate": 0.1354,
+   "per_source": {
+    "finance": 0.8457,
+    "hape_acad": 0.913,
+    "hape_blog": 0.8333,
+    "hape_fic": 0.8807,
+    "hape_news": 0.9167,
+    "hape_spok": 0.9764,
+    "hape_tvm": 0.7654,
+    "medicine": 0.9108,
+    "open_qa": 0.7517,
+    "reddit_eli5": 0.8397,
+    "wiki_csai": 0.7325
+   }
+  }
+ ],
+ "feature_table": [
+  {
+   "feature": "paren_rate",
+   "label": "Parentheses / asides",
+   "human_mean": 0.1724,
+   "ai_mean": 0.0643,
+   "weight": -1.7585
+  },
+  {
+   "feature": "emdash_rate",
+   "label": "Em dashes",
+   "human_mean": 0.126,
+   "ai_mean": 0.0034,
+   "weight": -1.4512
+  },
+  {
+   "feature": "sent_len_cv",
+   "label": "Burstiness (sentence-length variation)",
+   "human_mean": 0.5509,
+   "ai_mean": 0.3488,
+   "weight": -1.2553
+  },
+  {
+   "feature": "ai_phrase_rate",
+   "label": "Stock AI phrases",
+   "human_mean": 0.0313,
+   "ai_mean": 0.3062,
+   "weight": 1.1757
+  },
+  {
+   "feature": "ai_vocab_rate",
+   "label": "AI-favoured vocabulary",
+   "human_mean": 0.1325,
+   "ai_mean": 0.5491,
+   "weight": 0.7891
+  },
+  {
+   "feature": "opener_repeat",
+   "label": "Repetitive sentence openers",
+   "human_mean": 0.2002,
+   "ai_mean": 0.2639,
+   "weight": 0.7492
+  },
+  {
+   "feature": "exclaim_q_rate",
+   "label": "Exclamations & questions",
+   "human_mean": 0.0531,
+   "ai_mean": 0.0374,
+   "weight": 0.5938
+  },
+  {
+   "feature": "sent_len_mean",
+   "label": "Average sentence length",
+   "human_mean": 20.4988,
+   "ai_mean": 21.6833,
+   "weight": -0.5182
+  },
+  {
+   "feature": "comma_per_sent",
+   "label": "Commas per sentence",
+   "human_mean": 1.078,
+   "ai_mean": 1.2697,
+   "weight": 0.4791
+  },
+  {
+   "feature": "hedge_rate",
+   "label": "Hedging words",
+   "human_mean": 1.3752,
+   "ai_mean": 2.1385,
+   "weight": 0.4651
+  },
+  {
+   "feature": "mattr",
+   "label": "Vocabulary diversity (MATTR)",
+   "human_mean": 0.7979,
+   "ai_mean": 0.7779,
+   "weight": -0.3932
+  },
+  {
+   "feature": "the_it_start",
+   "label": "Topic-restating openers",
+   "human_mean": 0.1586,
+   "ai_mean": 0.2779,
+   "weight": 0.3466
+  },
+  {
+   "feature": "lowercase_i",
+   "label": "Lower-case 'i' and sloppy typing",
+   "human_mean": 0.2255,
+   "ai_mean": 0.0347,
+   "weight": -0.34
+  },
+  {
+   "feature": "contraction_rate",
+   "label": "Contractions",
+   "human_mean": 1.5766,
+   "ai_mean": 1.2324,
+   "weight": 0.3119
+  },
+  {
+   "feature": "transition_rate",
+   "label": "Transition-word sentence openers",
+   "human_mean": 0.0227,
+   "ai_mean": 0.0674,
+   "weight": 0.2842
+  },
+  {
+   "feature": "first_person_rate",
+   "label": "First-person voice",
+   "human_mean": 1.6188,
+   "ai_mean": 0.595,
+   "weight": -0.2634
+  },
+  {
+   "feature": "long_word_ratio",
+   "label": "Long-word ratio",
+   "human_mean": 0.1439,
+   "ai_mean": 0.1817,
+   "weight": 0.2162
+  },
+  {
+   "feature": "participle_rate",
+   "label": "Participial tails",
+   "human_mean": 0.0036,
+   "ai_mean": 0.0126,
+   "weight": 0.129
+  },
+  {
+   "feature": "informal_rate",
+   "label": "Informal / slang words",
+   "human_mean": 0.765,
+   "ai_mean": 0.4256,
+   "weight": -0.1208
+  },
+  {
+   "feature": "contrast_rate",
+   "label": "'Not just X, but Y' constructions",
+   "human_mean": 0.0007,
+   "ai_mean": 0.0027,
+   "weight": 0.1136
+  },
+  {
+   "feature": "triplet_rate",
+   "label": "Rule-of-three lists",
+   "human_mean": 0.0803,
+   "ai_mean": 0.1424,
+   "weight": 0.0372
+  },
+  {
+   "feature": "markdown_rate",
+   "label": "List / markdown structure",
+   "human_mean": 0.0007,
+   "ai_mean": 0.0006,
+   "weight": -0.0202
+  },
+  {
+   "feature": "avg_word_len",
+   "label": "Average word length",
+   "human_mean": 4.6284,
+   "ai_mean": 4.8615,
+   "weight": -0.0193
+  },
+  {
+   "feature": "sent_len_short",
+   "label": "Very short sentences",
+   "human_mean": 0.1533,
+   "ai_mean": 0.0462,
+   "weight": -0.0159
+  }
+ ]
+}

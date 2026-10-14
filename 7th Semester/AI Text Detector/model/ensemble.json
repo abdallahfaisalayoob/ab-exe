@@ -1,0 +1,16 @@
+{
+ "components": {
+  "desklib": 0.7574,
+  "tmr": -0.0421,
+  "fakespot": 0.0046,
+  "style": 0.0915
+ },
+ "bias": -0.2938,
+ "threshold": 0.8615,
+ "evaluation_summary": {
+  "humanized_detected_ours": 0.6033,
+  "humanized_detected_quillbot": 0.2534,
+  "human_false_positive_rate": 0.0203,
+  "auc": 0.94
+ }
+}

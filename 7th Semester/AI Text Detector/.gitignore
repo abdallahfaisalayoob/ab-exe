@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+training/downloads/
+training/*.jsonl
+training/hc3_all.jsonl

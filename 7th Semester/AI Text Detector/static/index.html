@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Text Detector</title>
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#1b1f24; --muted:#5d6670; --line:#e2e5ea;
+  --accent:#3b5bdb; --ai:#d6336c; --ai-soft:#fde7ef; --hu:#2b8a3e; --hu-soft:#e6f4ea;
+  --mid:#e67700; --mark:#fff3bf; --shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#111418; --panel:#1a1e24; --ink:#e7eaee; --muted:#9aa4af; --line:#2c323a;
+        --accent:#748ffc; --ai:#f06595; --ai-soft:#3a1d29; --hu:#51cf66; --hu-soft:#1b3323;
+        --mid:#ffa94d; --mark:#4a3f10; --shadow:none;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:18px;margin:0;font-weight:650;letter-spacing:-.01em}
+.badge{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.badge.ok{color:var(--hu);border-color:var(--hu)}
+.badge.warn{color:var(--mid);border-color:var(--mid)}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px;padding:20px 24px;max-width:1500px;margin:0 auto}
+@media (max-width:980px){main{grid-template-columns:1fr;padding:16px}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;font-weight:600}
+textarea{width:100%;min-height:360px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:12px;
+  font:15px/1.55 inherit;background:var(--bg);color:var(--ink)}
+textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+button,select{font:inherit;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button:disabled{opacity:.55;cursor:wait}
+.muted{color:var(--muted);font-size:13px}
+.spacer{flex:1}
+.stack>*+*{margin-top:16px}
+/* gauge */
+.verdict{display:flex;gap:22px;align-items:center}
+.ring{--p:0;--c:var(--muted);width:132px;height:132px;border-radius:50%;flex:none;
+  background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0);display:grid;place-items:center}
+.ring>div{width:104px;height:104px;border-radius:50%;background:var(--panel);display:grid;place-items:center;text-align:center}
+.ring b{font-size:30px;line-height:1}
+.ring span{font-size:11px;color:var(--muted);display:block;margin-top:2px}
+.verdict h3{margin:0 0 4px;font-size:22px}
+.warn{background:var(--mark);border-radius:8px;padding:8px 10px;font-size:13px;margin-top:8px}
+/* bars */
+.bar{display:grid;grid-template-columns:200px 1fr 52px;gap:10px;align-items:center;font-size:13px;margin:6px 0}
+.bar .track{height:8px;background:var(--line);border-radius:4px;position:relative;overflow:hidden}
+.bar .fill{position:absolute;inset:0 auto 0 0;border-radius:4px}
+.bar .num{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:600px){.bar{grid-template-columns:120px 1fr 44px}}
+/* reasons */
+ul.reasons{margin:0;padding-left:18px}
+ul.reasons li{margin:4px 0}
+/* highlighted text */
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+.hl{white-space:pre-wrap;line-height:1.8;font-size:15px;max-height:520px;overflow:auto;padding-right:6px}
+.sent{border-radius:3px;padding:1px 0}
+mark{background:none;color:inherit;border-bottom:2px solid var(--ai);cursor:help;position:relative}
+mark.phrase{background:var(--ai-soft);border-bottom-color:var(--ai)}
+mark.vocab{border-bottom-color:var(--mid)}
+mark.participle{border-bottom:2px dashed var(--ai)}
+mark.transition{border-bottom-color:var(--accent)}
+mark.emdash{background:var(--ai-soft)}
+mark.contrast{border-bottom:2px dotted var(--ai)}
+mark.markdown{border-bottom-color:var(--muted)}
+#tip{position:fixed;z-index:10;max-width:320px;background:var(--ink);color:var(--panel);font-size:12.5px;
+  padding:8px 10px;border-radius:8px;pointer-events:none;display:none;line-height:1.4}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.tag{font-size:11px;padding:1px 6px;border-radius:99px}
+.tag.ai{background:var(--ai-soft);color:var(--ai)}
+.tag.human{background:var(--hu-soft);color:var(--hu)}
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tabs button{padding:6px 12px;font-size:13px}
+.tabs button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.hidden{display:none!important}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cmp .card{padding:12px}
+.big{font-size:28px;font-weight:700}
+.edits{max-height:260px;overflow:auto;font-size:13px}
+.edits div{padding:4px 0;border-bottom:1px solid var(--line)}
+.edits del{color:var(--ai)} .edits ins{color:var(--hu);text-decoration:none}
+.spark{display:flex;align-items:flex-end;gap:2px;height:46px}
+.spark div{flex:1;background:var(--accent);opacity:.7;border-radius:2px 2px 0 0;min-width:2px}
+.empty{color:var(--muted);text-align:center;padding:60px 20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>AI Text Detector</h1>
+  <span id="mode" class="badge">starting...</span>
+  <span class="spacer"></span>
+  <span class="muted">Runs 100% locally &middot; nothing is uploaded</span>
+</header>
+
+<main>
+  <section class="stack">
+    <div class="card">
+      <h2>Text to check</h2>
+      <textarea id="input" placeholder="Paste an essay, answer or paragraph here (100+ words works best)..."></textarea>
+      <div class="row">
+        <button class="primary" id="go">Analyze</button>
+        <button id="hum" title="Rewrite the text to remove AI tells, then re-score it">Humanize demo</button>
+        <select id="samples"><option value="">Load a sample...</option></select>
+        <span class="spacer"></span>
+        <span class="muted" id="wc">0 words</span>
+      </div>
+    </div>
+    <div class="card" id="humCard" class="hidden">
+      <h2>Humanizer (Part 3 demo)</h2>
+      <div id="humOut" class="muted">Click <b>Humanize demo</b> to see which AI tells a rewriter would remove, and how much the score changes.</div>
+    </div>
+  </section>
+
+  <section class="stack" id="results">
+    <div class="card empty" id="empty">Paste some text and press <b>Analyze</b>.<br><span class="muted">Ctrl+Enter also works.</span></div>
+    <div class="card hidden" id="vCard">
+      <div class="verdict">
+        <div class="ring" id="ring"><div><div><b id="pct">-</b><span>AI likelihood</span></div></div></div>
+        <div>
+          <h3 id="verdict">-</h3>
+          <div class="muted" id="meta"></div>
+          <div id="warns"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card hidden" id="whyCard">
+      <h2>Why?</h2>
+      <ul class="reasons" id="reasons"></ul>
+    </div>
+    <div class="card hidden" id="textCard">
+      <div class="tabs">
+        <button class="on" data-t="hl">Highlighted text</button>
+        <button data-t="comp">Detectors</button>
+        <button data-t="feat">Writing features</button>
+      </div>
+      <div data-p="hl">
+        <div class="legend">
+          <span><i style="background:var(--ai-soft)"></i>sentence shading = local AI likelihood</span>
+          <span><i style="border-bottom:2px solid var(--ai)"></i>stock phrase</span>
+          <span><i style="border-bottom:2px solid var(--mid)"></i>AI-favoured word</span>
+          <span><i style="border-bottom:2px dashed var(--ai)"></i>participial tail</span>
+          <span><i style="border-bottom:2px solid var(--accent)"></i>transition opener</span>
+          <span>hover any mark for the reason</span>
+        </div>
+        <div class="hl" id="hl"></div>
+        <h2 style="margin-top:16px">Sentence lengths (burstiness)</h2>
+        <div class="spark" id="spark"></div>
+        <div class="muted" id="sparkNote"></div>
+      </div>
+      <div data-p="comp" class="hidden" id="comps"></div>
+      <div data-p="feat" class="hidden">
+        <table><thead><tr><th>Feature</th><th class="num">This text</th><th class="num">Human avg</th><th class="num">AI avg</th><th>Points to</th></tr></thead>
+        <tbody id="feats"></tbody></table>
+        <p class="muted">Averages come from 16,700 training texts (HC3 + HAP-E). Only features that moved the score noticeably are shown.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="tip"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let SAMPLES = [];
+
+async function status(){
+  try{
+    const s = await (await fetch('/api/status')).json();
+    const m = $('#mode');
+    if(s.mode === 'fast'){ m.textContent = 'fast mode (stylometry only)'; m.className = 'badge warn'; }
+    else if(!s.ready){ m.textContent = 'loading models' + (s.loading ? ': ' + s.loading : '') + '...'; m.className='badge'; setTimeout(status, 1500); }
+    else { m.textContent = 'full mode: ' + Object.keys(s.ensemble).length + ' detectors ready'; m.className = 'badge ok'; }
+  }catch(e){ setTimeout(status, 2000); }
+}
+async function loadSamples(){
+  SAMPLES = await (await fetch('/api/samples')).json();
+  const sel = $('#samples');
+  SAMPLES.forEach((s,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=s.name; sel.appendChild(o); });
+}
+$('#samples').onchange = e => { if(e.target.value!==''){ $('#input').value = SAMPLES[e.target.value].text; count(); } };
+function count(){ const n = ($('#input').value.match(/[A-Za-z']+/g)||[]).length; $('#wc').textContent = n + ' words'; }
+$('#input').addEventListener('input', count);
+$('#input').addEventListener('keydown', e => { if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) analyze(); });
+
+function color(p){ return p>=.6 ? 'var(--ai)' : p>.4 ? 'var(--mid)' : 'var(--hu)'; }
+
+async function post(url, body){
+  const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j = await r.json(); if(j.error) throw new Error(j.error); return j;
+}
+
+async function analyze(){
+  const text = $('#input').value.trim(); if(!text) return;
+  const b = $('#go'); b.disabled = true; b.textContent = 'Analyzing...';
+  try{ render(await post('/api/analyze',{text})); }
+  catch(e){ alert('Error: '+e.message); }
+  b.disabled = false; b.textContent = 'Analyze';
+}
+$('#go').onclick = analyze;
+
+function render(r){
+  $('#empty').classList.add('hidden');
+  ['#vCard','#whyCard','#textCard'].forEach(s=>$(s).classList.remove('hidden'));
+  const p = r.ai_probability;
+  const ring = $('#ring');
+  ring.style.setProperty('--p', p==null?0:Math.round(p*100));
+  ring.style.setProperty('--c', p==null?'var(--muted)':color(p));
+  $('#pct').textContent = p==null ? '-' : Math.round(p*100)+'%';
+  $('#verdict').textContent = r.verdict; $('#verdict').style.color = p==null?'':color(p);
+  const st = r.stats||{};
+  $('#meta').textContent = `${st.words||0} words · ${st.sentences||0} sentences · ${r.mode} mode` + (r.seconds!=null?` · ${r.seconds}s`:'');
+  $('#warns').innerHTML = (r.warnings||[]).map(w=>`<div class="warn">${esc(w)}</div>`).join('');
+  $('#reasons').innerHTML = (r.reasons||[]).map(x=>`<li>${esc(x)}</li>`).join('') || '<li class="muted">No strong signals either way.</li>';
+
+  // highlighted text
+  const t = r.text, H = r.highlights||[], S = r.sentences||[];
+  let html = '', pos = 0;
+  const sentAt = i => S.find(s => i>=s.start && i<s.end);
+  // build segments by walking sentences, inserting marks
+  const piece = (a,b) => {
+    let out='', i=a;
+    for(const h of H){ if(h.end<=a || h.start>=b) continue;
+      const s=Math.max(h.start,a), e=Math.min(h.end,b);
+      out += esc(t.slice(i,s)) + `<mark class="${h.key}" data-tip="${esc('<b>'+h.label+'</b><br>'+h.why)}">${esc(t.slice(s,e))}</mark>`; i=e; }
+    return out + esc(t.slice(i,b));
+  };
+  for(const s of S){
+    html += piece(pos, s.start);
+    let bg = 'transparent', tip = '';
+    if(s.ai_probability!=null){
+      const a = s.ai_probability;
+      const alpha = Math.max(0, (a-.35)/.65);
+      bg = a>.5 ? `rgba(214,51,108,${(.10+.32*alpha).toFixed(2)})` : (a<.2? 'rgba(43,138,62,.10)':'transparent');
+      tip = `Local AI likelihood: ${Math.round(a*100)}% · ${s.words} words`;
+    } else tip = `${s.words} words`;
+    if(s.markers) tip += ` · ${s.markers} marker(s)`;
+    html += `<span class="sent" style="background:${bg}" data-tip="${esc(tip)}">${piece(s.start,s.end)}</span>`;
+    pos = s.end;
+  }
+  html += piece(pos, t.length);
+  $('#hl').innerHTML = html;
+
+  // sparkline of sentence lengths
+  const L = st.sentence_lengths||[]; const mx = Math.max(1,...L);
+  $('#spark').innerHTML = L.map(l=>`<div style="height:${Math.max(4,100*l/mx)}%" title="${l} words"></div>`).join('');
+  if(L.length>2){
+    const m = L.reduce((a,b)=>a+b,0)/L.length, sd = Math.sqrt(L.reduce((a,b)=>a+(b-m)**2,0)/L.length);
+    const cv = sd/m;
+    $('#sparkNote').textContent = `Variation (CV) = ${cv.toFixed(2)} — ` + (cv<.35?'very even sentence lengths, typical of AI.':cv>.5?'bursty, typical of human writing.':'in between.');
+  } else $('#sparkNote').textContent='';
+
+  // components
+  const C = r.components||{};
+  $('#comps').innerHTML = Object.entries(C).map(([k,c])=>`
+    <div class="bar"><div><b>${esc(c.label)}</b></div>
+      <div class="track"><div class="fill" style="width:${c.ai_probability*100}%;background:${color(c.ai_probability)}"></div></div>
+      <div class="num">${Math.round(c.ai_probability*100)}%</div></div>
+    <div class="muted" style="margin:-2px 0 12px">${esc(c.description)}${c.weight!=null?` <i>(ensemble weight ${(+c.weight).toFixed(2)})</i>`:''}</div>`).join('');
+
+  // features
+  $('#feats').innerHTML = (r.signals||[]).map(s=>`<tr title="${esc(s.description)}"><td>${esc(s.label)}</td>
+    <td class="num">${s.value.toFixed(2)}</td><td class="num">${s.human_avg==null?'-':s.human_avg.toFixed(2)}</td>
+    <td class="num">${s.ai_avg==null?'-':s.ai_avg.toFixed(2)}</td>
+    <td><span class="tag ${s.direction}">${s.direction==='ai'?'AI':'human'}</span></td></tr>`).join('');
+}
+
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('[data-p]').forEach(p=>p.classList.toggle('hidden',p.dataset.p!==b.dataset.t));
+});
+
+// tooltips
+const tip = $('#tip');
+document.addEventListener('mouseover', e=>{
+  const el = e.target.closest('[data-tip]'); if(!el){ tip.style.display='none'; return; }
+  tip.innerHTML = el.dataset.tip; tip.style.display='block';
+});
+document.addEventListener('mousemove', e=>{
+  if(tip.style.display==='block'){
+    tip.style.left = Math.min(e.clientX+14, innerWidth-340)+'px'; tip.style.top = (e.clientY+16)+'px';
+  }
+});
+
+// humanizer
+$('#hum').onclick = async ()=>{
+  const text = $('#input').value.trim(); if(!text) return;
+  const b = $('#hum'); b.disabled = true; b.textContent = 'Rewriting + re-scoring...';
+  try{
+    const r = await post('/api/humanize',{text});
+    const pb = r.before.ai_probability, pa = r.after.ai_probability;
+    const kinds = {}; r.edits.forEach(e=>kinds[e.kind]=(kinds[e.kind]||0)+1);
+    $('#humOut').innerHTML = `
+      <div class="cmp">
+        <div class="card"><div class="muted">Before</div><div class="big" style="color:${color(pb)}">${Math.round(pb*100)}%</div><div class="muted">${esc(r.before.verdict)}</div></div>
+        <div class="card"><div class="muted">After humanizing</div><div class="big" style="color:${color(pa)}">${Math.round(pa*100)}%</div><div class="muted">${esc(r.after.verdict)}</div></div>
+      </div>
+      <p class="muted">${r.edits.length} edits: ${Object.entries(kinds).map(([k,v])=>esc(k)+' ×'+v).join(' · ')}</p>
+      <textarea readonly style="min-height:180px">${esc(r.text)}</textarea>
+      <div class="row"><button id="useHum">Analyze the rewritten text</button></div>
+      <h2 style="margin-top:12px">Edit log</h2>
+      <div class="edits">${r.edits.slice(0,120).map(e=>`<div><b>${esc(e.kind)}:</b> <del>${esc(e.before)}</del> → <ins>${esc(e.after||'(removed)')}</ins></div>`).join('')}</div>`;
+    $('#useHum').onclick = ()=>{ $('#input').value = r.text; count(); render(r.after); };
+  }catch(e){ alert('Error: '+e.message); }
+  b.disabled = false; b.textContent = 'Humanize demo';
+};
+
+status(); loadSamples();
+</script>
+</body>
+</html>
