@@ -49,8 +49,9 @@ Reproduces **HIP (Humanization by Iterative Paraphrasing)** from *Xu et al. 2026
 code(r"""
 # ===== 1. Settings =====
 SMOKE = False            # True = tiny CPU test (used by the author to check the notebook)
+FAST  = True             # True = ~1 h total (fits a free Colab session). False = full size, ~2.5 h
 
-N_PAIRS     = 2500       # training pairs (paper used ~11.7k; 2.5k fits a free T4 session)
+N_PAIRS     = 2500       # training pairs (paper used ~11.7k)
 MIN_WORDS, MAX_WORDS = 100, 260
 BASE_MODEL  = "Qwen/Qwen3-4B-Base"           # the model we fine-tune (base, NOT chat)
 REWRITER    = "Qwen/Qwen2.5-1.5B-Instruct"   # chat model that makes the "AI-style" versions
@@ -59,6 +60,9 @@ LORA_R      = 64
 LR          = 1e-4
 MAX_LEN     = 1024       # tokens per training example
 SAVE_DIR    = "/content/drive/MyDrive/hip_humanizer"
+
+if FAST:
+    N_PAIRS, MAX_WORDS, MAX_LEN = 1200, 200, 768
 
 if SMOKE:
     N_PAIRS, MIN_WORDS, MAX_WORDS = 6, 40, 120
@@ -131,6 +135,7 @@ for line in open(hc3, encoding="utf-8"):
         if ok(t): humans.append(t)
 random.Random(0).shuffle(humans)
 humans = list(dict.fromkeys(humans))[:N_PAIRS]
+# pairs already made in an earlier (interrupted) run are always reused, so no work is lost
 print(len(humans), "human passages, e.g.:\n", humans[0][:400])
 """)
 
