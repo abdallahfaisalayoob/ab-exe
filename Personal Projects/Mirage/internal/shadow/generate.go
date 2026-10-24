@@ -60,14 +60,17 @@ func (g *gen) value(n *node, path string) any {
 	case kFloat:
 		return float64(g.rng.Intn(100000)) / 100.0
 	case kEmail:
-		return fmt.Sprintf("%s.%s@example.invalid", pick(g.rng, firstNames), pick(g.rng, lastNames))
+		// Ordinary fake data (not a honeytoken) uses realistic, common domains
+		// so a careful agent can't spot the shadow by a reserved TLD. Only
+		// honeytokens use reserved/inert values.
+		return fmt.Sprintf("%s.%s@%s", pick(g.rng, firstNames), pick(g.rng, lastNames), pick(g.rng, emailDomains))
 	case kUUID:
 		return g.uuid()
 	case kDateTime:
 		return fmt.Sprintf("2026-%02d-%02dT%02d:%02d:00Z",
 			1+g.rng.Intn(12), 1+g.rng.Intn(28), g.rng.Intn(24), g.rng.Intn(60))
 	case kURL:
-		return fmt.Sprintf("https://cdn.example.invalid/%s", g.hex(8))
+		return fmt.Sprintf("https://cdn.%s/%s", pick(g.rng, webDomains), g.hex(8))
 	case kName:
 		return pick(g.rng, firstNames) + " " + pick(g.rng, lastNames)
 	case kSecret:
@@ -156,7 +159,9 @@ func containsAny(s string, subs ...string) bool {
 }
 
 var (
-	firstNames = []string{"alex", "sam", "jordan", "taylor", "casey", "morgan", "riley", "jamie"}
-	lastNames  = []string{"lee", "patel", "garcia", "khan", "nguyen", "silva", "costa", "ahmed"}
-	words      = []string{"alpha", "bravo", "delta", "echo", "falcon", "harbor", "lumen", "nova"}
+	firstNames   = []string{"alex", "sam", "jordan", "taylor", "casey", "morgan", "riley", "jamie"}
+	lastNames    = []string{"lee", "patel", "garcia", "khan", "nguyen", "silva", "costa", "ahmed"}
+	words        = []string{"alpha", "bravo", "delta", "echo", "falcon", "harbor", "lumen", "nova"}
+	emailDomains = []string{"gmail.com", "outlook.com", "yahoo.com", "proton.me", "icloud.com"}
+	webDomains   = []string{"cloudfront.net", "fastly.net", "akamai.net", "b-cdn.net"}
 )

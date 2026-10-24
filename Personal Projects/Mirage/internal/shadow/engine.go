@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/abdallahfaisalayoob/mirage/internal/honeytoken"
 	"github.com/abdallahfaisalayoob/mirage/internal/session"
@@ -53,6 +54,12 @@ func (e *Engine) Handle(w http.ResponseWriter, r *http.Request, s *session.Sessi
 			s.ShadowSeed = hashHex(sid)
 		}
 	}
+
+	// Latency jitter: a zero-latency reply would itself betray the shadow, since
+	// the real app takes time to serve. Sleep a seeded, plausible interval
+	// (seeded so a session sees stable-ish timing, not a constant). This is an
+	// approximation — exact per-route latency matching is a known limitation.
+	e.jitter(r, sid, template)
 
 	// Planted honeytoken endpoints (fake .env, config, admin) take priority.
 	if e.cfg.HoneytokenEnv {
@@ -195,3 +202,15 @@ func ctOr(s, def string) string {
 }
 
 func randishID() string { return hashHex(fmt.Sprintf("%d", http.StatusOK))[:16] }
+
+// jitter sleeps a seeded, plausible per-session interval (~25–160ms) so shadow
+// responses don't return in suspiciously uniform near-zero time. Honours
+// request cancellation so it never holds a goroutine past the client.
+func (e *Engine) jitter(r *http.Request, sid, template string) {
+	rng, _ := seededRNG(e.secret, sid, template, "latency")
+	d := time.Duration(25+rng.Intn(135)) * time.Millisecond
+	select {
+	case <-r.Context().Done():
+	case <-time.After(d):
+	}
+}

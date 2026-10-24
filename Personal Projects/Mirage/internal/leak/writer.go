@@ -2,7 +2,9 @@ package leak
 
 import (
 	"bytes"
+	"compress/flate"
 	"compress/gzip"
+	"compress/zlib"
 	"encoding/base64"
 	"io"
 	"net/http"
@@ -22,6 +24,7 @@ type Writer struct {
 	headerDone bool
 	ct         string
 	gzipped    bool
+	deflate    bool
 	bodyScan   bool
 
 	buf      bytes.Buffer
@@ -57,8 +60,18 @@ func (w *Writer) prepare() {
 	hits := w.f.InspectHeaders(w.rw.Header())
 	w.Hits = append(w.Hits, hits...)
 	w.ct = w.rw.Header().Get("Content-Type")
-	w.gzipped = strings.Contains(strings.ToLower(w.rw.Header().Get("Content-Encoding")), "gzip")
-	w.bodyScan = w.f.TextLike(w.ct) || w.gzipped
+	enc := strings.ToLower(strings.TrimSpace(w.rw.Header().Get("Content-Encoding")))
+	w.gzipped = strings.Contains(enc, "gzip")
+	w.deflate = enc == "deflate"
+	// An encoding we can't decode (e.g. brotli/zstd) can't be body-scanned; we
+	// fail OPEN for availability and record it so the gap is visible. (Known
+	// limitation — see KNOWN_LIMITATIONS.md.)
+	if enc != "" && !w.gzipped && !w.deflate {
+		w.bodyScan = false
+		w.Hits = append(w.Hits, "unscannable_encoding:"+enc)
+		return
+	}
+	w.bodyScan = w.f.TextLike(w.ct) || w.gzipped || w.deflate
 }
 
 func (w *Writer) Write(b []byte) (int, error) {
@@ -124,11 +137,12 @@ func (w *Writer) Finalise() {
 	}
 	body := w.buf.Bytes()
 
-	if w.gzipped {
-		if dec, err := gunzip(body); err == nil {
+	if w.gzipped || w.deflate {
+		dec, derr := w.decode(body)
+		if derr == nil {
 			red, hits := w.scanWithBase64(dec)
 			w.Hits = append(w.Hits, hits...)
-			if enc, err := gzipBytes(red); err == nil {
+			if enc, eerr := w.encode(red); eerr == nil {
 				w.rw.Write(enc)
 				return
 			}
@@ -203,3 +217,41 @@ func gzipBytes(b []byte) ([]byte, error) {
 }
 
 var reBase64Run = regexp.MustCompile(`[A-Za-z0-9+/]{40,}={0,2}`)
+
+func (w *Writer) decode(b []byte) ([]byte, error) {
+	if w.deflate {
+		return inflate(b)
+	}
+	return gunzip(b)
+}
+
+func (w *Writer) encode(b []byte) ([]byte, error) {
+	if w.deflate {
+		return deflateBytes(b)
+	}
+	return gzipBytes(b)
+}
+
+func inflate(b []byte) ([]byte, error) {
+	r, err := zlib.NewReader(bytes.NewReader(b))
+	if err != nil {
+		// Some servers send raw DEFLATE without zlib header; try flate.
+		fr := flate.NewReader(bytes.NewReader(b))
+		defer fr.Close()
+		return io.ReadAll(io.LimitReader(fr, 16<<20))
+	}
+	defer r.Close()
+	return io.ReadAll(io.LimitReader(r, 16<<20))
+}
+
+func deflateBytes(b []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	zw := zlib.NewWriter(&buf)
+	if _, err := zw.Write(b); err != nil {
+		return nil, err
+	}
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}

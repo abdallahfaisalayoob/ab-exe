@@ -81,6 +81,18 @@ All toy vulnerable apps and the simulator run on an internal-only Docker network
 written — only the *shape* of attacks (oversized fields, memory-leak-shaped
 responses) is simulated.
 
+## D13 — Red-team fixes (M9)
+Deliberately attacking Mirage surfaced three fixable shadow/leak tells, now
+closed: (a) ordinary fake data used a reserved `.invalid` TLD — a dead giveaway;
+now only honeytokens use reserved values, fake data uses realistic domains;
+(b) shadow responses returned in ~0ms — added a seeded 25–160ms jitter; (c) the
+leak filter only handled gzip — added deflate/zlib and made unknown encodings
+(brotli) explicitly flagged as unscannable rather than silently "scanned". The
+irreducible residuals (approximate latency matching, partial header fidelity,
+cross-session actor tracking, pattern-based leak detection, decoy-text
+mis-score backfire) are documented honestly in KNOWN_LIMITATIONS.md rather than
+papered over.
+
 ## D12 — Repository placement
 Mirage lives under `ab-exe/Personal Projects/Mirage` to fit the existing repo
 layout, with its own self-contained Go module and MIT licence.
