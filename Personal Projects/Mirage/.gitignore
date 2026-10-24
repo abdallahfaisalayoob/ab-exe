@@ -1,0 +1,8 @@
+/mirage
+/mirage-sim
+*.db
+*.db-*
+/dist/
+*.out
+coverage.*
+testbed/data/

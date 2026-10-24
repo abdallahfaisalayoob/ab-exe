@@ -1,0 +1,93 @@
+# Mirage example configuration.
+#
+# Ships in the SAFE default posture: monitor-only, every active defence off.
+# Turn things on deliberately, one at a time, watching the dashboard.
+
+# Where Mirage accepts client traffic.
+listen: ":8080"
+# The app/API Mirage protects. Mirage forwards here when it decides not to act.
+origin: "http://app:3000"
+# Dashboard + /metrics. Bind to localhost or a private interface.
+admin_listen: "127.0.0.1:9900"
+# Seeds all HMACs. MUST be set in production (or via $MIRAGE_SECRET).
+# If empty, a random secret is generated and sessions won't survive restart.
+server_secret: ""
+
+# "monitor" = score and log everything, enforce nothing (default, recommended
+# for first install). "enforce" = allow the response ladder to act.
+mode: "monitor"
+# Global kill switch: true => Mirage becomes a plain pass-through proxy.
+# Also forced on by MIRAGE_KILL=1 or POST /admin/kill?on=1.
+kill_switch: false
+
+# --- Ingress guard (safe, fail-open, ON by default) ---
+ingress:
+  enabled: true
+  max_body_bytes: 10485760       # 10 MiB
+  max_fields: 2000               # urlencoded/multipart field count
+  max_field_name_len: 256        # stops the PHP2Shell oversized-field shape
+  max_header_count: 100
+  max_multipart_size: 33554432   # 32 MiB
+  min_request_gap: 0s            # 0 disables per-session rate flooring
+  virtual_patch: true            # CISA-KEV shape rules (cheap first pass)
+  rules_file: ""                 # optional Coraza/CRS rules file
+
+# --- Session scorer (ON by default; only logs in monitor mode) ---
+scorer:
+  enabled: true
+  window_size: 64                # requests retained per session
+
+# --- Response ladder (OFF by default) ---
+ladder:
+  enabled: false
+  max_rung: "monitor"            # raise to pow/tarpit/shadow/block to allow those
+  pow_threshold: 55
+  tarpit_threshold: 70
+  shadow_threshold: 82
+  block_threshold: 95
+  tarpit_delay_ms: 120
+  pow_difficulty: 16             # leading zero bits for the PoW challenge
+
+# --- Shadow engine (OFF by default) ---
+shadow:
+  enabled: false
+  min_agent: 60                  # extra gate: must look automated
+  min_hostile: 70                # extra gate: must look hostile
+  learn_traffic: true            # learn route shapes from live traffic
+  openapi_file: ""               # optional: seed shapes from an OpenAPI spec
+  decoy_text: false              # defensive prompt-injection text (mislead only)
+  honeytoken_env: true           # serve fake .env/config files when shadowing
+  token_prefix: "mrg"            # honeytoken prefix (reserved; inert)
+
+# --- Response leak filter (OFF by default) ---
+leak:
+  enabled: false
+  max_cookie_bytes: 4096         # oversized Set-Cookie = memory-disclosure shape
+  buffer_cap_bytes: 2097152      # 2 MiB full-buffer inspection cap
+  redact_keys: true
+  redact_traces: true
+  redact_phpinfo: true
+  scan_compressed: true
+  extra_patterns: []             # user regexes; matches redacted
+
+# --- Allowlist (trusted clients are never shadowed) ---
+allowlist:
+  ips: []                        # IPs or CIDRs
+  paths: ["/healthz", "/livez", "/readyz"]
+  verify_crawlers: true          # rDNS-verify Googlebot/Bingbot/etc
+  web_bot_auth: true             # accept RFC 9421 HTTP Message Signatures
+
+# --- Alerting ---
+alert:
+  webhook_url: ""
+  syslog: false
+  syslog_addr: "localhost:514"
+
+# --- Privacy (redact by default) ---
+privacy:
+  store_raw: false               # true stores full cookies/headers/bodies
+
+# --- Storage ---
+storage:
+  driver: "sqlite"               # or "memory"
+  dsn: "file:/var/lib/mirage/mirage.db?cache=shared"
