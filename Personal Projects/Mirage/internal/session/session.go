@@ -136,6 +136,10 @@ func NewStore(secret string, windowCap int) *Store {
 	}
 }
 
+// Secret returns the store's signing secret (used to seed the shadow engine's
+// deterministic generator when no explicit server_secret is configured).
+func (s *Store) Secret() []byte { return s.secret }
+
 // Identify resolves (or creates) the session for a request and returns it plus
 // the cookie value that should be set on the response (empty if already set).
 func (s *Store) Identify(r *http.Request, tlsHint string) (*Session, string) {
