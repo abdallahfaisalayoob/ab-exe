@@ -53,6 +53,13 @@ type Session struct {
 	Reasons               []string
 	// ManualVerdict is "", "allow", or "block" (set from the dashboard).
 	ManualVerdict string
+
+	// PoWClearedUntil is when a solved proof-of-work challenge expires. While
+	// in the future, the session skips the PoW rung.
+	PoWClearedUntil time.Time
+	// ShadowSeed is the per-session seed for deterministic fake generation. It
+	// is set once the first time the session is shadowed.
+	ShadowSeed string
 }
 
 // New builds a bare session with the given id and window capacity. Used by the

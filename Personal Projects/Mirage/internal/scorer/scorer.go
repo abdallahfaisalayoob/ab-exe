@@ -195,7 +195,7 @@ var agentReasons = reasonSet{
 }
 
 var hostileReasons = reasonSet{
-	Breadth:       func(x float64) (string, bool) { return "broad, systematic endpoint enumeration", x > 0.3 },
+	Breadth:       func(x float64) (string, bool) { return "broad, systematic endpoint enumeration", x > 0.6 },
 	NotFoundRatio: func(x float64) (string, bool) { return fmt.Sprintf("high 404 ratio (%.0f%%), probing for hidden paths", x*100), x > 0.25 },
 	ErrorSeek:     func(x float64) (string, bool) { return "error-seeking: requests chase 4xx/5xx responses", x > 0.3 },
 	MutationShare: func(x float64) (string, bool) { return "payload mutation after errors/blocks", x > 0.1 },

@@ -35,8 +35,11 @@ func HostileModel() LinModel {
 	return LinModel{
 		Bias: -3.5,
 		Weights: featureWeights{
-			Breadth:       4.0,
-			NotFoundRatio: 3.0,
+			// Breadth alone (distinct paths that all return 200) is normal
+			// browsing, so it is weighted modestly; hostility is driven by
+			// MISSING (404) and ERROR-seeking enumeration and payload mutation.
+			Breadth:       1.6,
+			NotFoundRatio: 4.0,
 			ErrorSeek:     2.5,
 			MutationShare: 4.0,
 		},

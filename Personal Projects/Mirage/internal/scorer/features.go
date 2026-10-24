@@ -101,12 +101,16 @@ func Extract(s *session.Session) Features {
 		_ = i
 	}
 
-	span := w[len(w)-1].At.Sub(w[0].At).Minutes()
-	if span < 0.05 {
-		span = 0.05
+	// Breadth is the distinct-template ratio (scale-free, timing-independent):
+	// scanners hit a new path almost every request (ratio→1); humans revisit a
+	// small set (ratio low). Using a ratio rather than a per-minute rate avoids
+	// a burst of requests looking like enumeration purely because it was fast.
+	// It is damped for very short windows where the ratio is not yet meaningful.
+	distinctRatio := float64(len(templates)) / float64(len(w))
+	if len(w) < 5 {
+		distinctRatio *= float64(len(w)) / 5.0
 	}
-	// distinct templates per minute, saturating at ~30/min.
-	f.Breadth = math.Min(float64(len(templates))/span/30.0, 1)
+	f.Breadth = math.Min(distinctRatio, 1)
 	f.NotFoundRatio = float64(notFound) / float64(len(w))
 	f.ErrorSeek = float64(afterErr) / float64(len(w))
 	f.MutationShare = float64(mutations) / float64(len(w))

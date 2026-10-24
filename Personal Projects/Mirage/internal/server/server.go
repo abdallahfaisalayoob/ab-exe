@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"sync/atomic"
 
 	"github.com/abdallahfaisalayoob/mirage/internal/config"
 	"github.com/abdallahfaisalayoob/mirage/internal/failopen"
 	"github.com/abdallahfaisalayoob/mirage/internal/ingress"
+	"github.com/abdallahfaisalayoob/mirage/internal/ladder"
 	"github.com/abdallahfaisalayoob/mirage/internal/metrics"
 	"github.com/abdallahfaisalayoob/mirage/internal/proxy"
 	"github.com/abdallahfaisalayoob/mirage/internal/scorer"
@@ -28,6 +30,7 @@ type App struct {
 
 	ingress *ingress.Guard
 	scorer  *scorer.Scorer
+	ladder  *ladder.Ladder
 
 	closers []func()
 }
@@ -60,6 +63,13 @@ func Build(cfg *config.Config) (*App, error) {
 	// Session scorer (M3).
 	if cfg.Scorer.Enabled {
 		app.scorer = scorer.New()
+	}
+
+	// Response ladder (M4). Shadow handler is attached in M5; nil here means
+	// the shadow rung falls back to a tarpit (never leaks the real app).
+	if cfg.Ladder.Enabled {
+		exposeRung := os.Getenv("MIRAGE_EXPOSE_RUNG") == "1"
+		app.ladder = ladder.New(cfg.Ladder, nil, exposeRung)
 	}
 
 	hooks := app.buildHooks()
@@ -121,6 +131,27 @@ func (a *App) buildHooks() proxy.Hooks {
 			} else if res.Score >= 55 {
 				a.Metrics.Inc("mirage_score_ge55_total")
 			}
+		}
+	}
+
+	// Response ladder (M4). Only reached in enforce mode for non-allowlisted
+	// sessions (the proxy gates that). Picks a rung from the combined score and
+	// serves it; a Served decision stops forwarding to the origin.
+	if a.ladder != nil {
+		h.Ladder = func(ctx *proxy.Context) proxy.Decision {
+			rung := ladder.Decide(ctx.Score, a.Cfg.Ladder)
+			ctx.Rung = rung.String()
+			if ctx.Session != nil {
+				ctx.Session.Rung = ctx.Rung
+			}
+			if rung == ladder.RungMonitor {
+				return proxy.Continue
+			}
+			a.Metrics.Inc("mirage_rung_" + rung.String() + "_total")
+			if a.ladder.Serve(rung, ctx.W, ctx.R, ctx.Session) {
+				return proxy.Served
+			}
+			return proxy.Continue
 		}
 	}
 
