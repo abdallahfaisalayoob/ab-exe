@@ -14,6 +14,7 @@ func buildApp(t *testing.T, origin string, mutate func(*config.Config)) *App {
 	cfg := config.Default()
 	cfg.Origin = origin
 	cfg.ServerSecret = "test"
+	cfg.Storage.Driver = "memory"
 	if mutate != nil {
 		mutate(&cfg)
 	}

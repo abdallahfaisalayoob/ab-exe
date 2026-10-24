@@ -11,9 +11,13 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"sync/atomic"
 
+	"github.com/abdallahfaisalayoob/mirage/internal/alert"
 	"github.com/abdallahfaisalayoob/mirage/internal/config"
+	"github.com/abdallahfaisalayoob/mirage/internal/dashboard"
+	"github.com/abdallahfaisalayoob/mirage/internal/events"
 	"github.com/abdallahfaisalayoob/mirage/internal/failopen"
 	"github.com/abdallahfaisalayoob/mirage/internal/honeytoken"
 	"github.com/abdallahfaisalayoob/mirage/internal/ingress"
@@ -40,6 +44,9 @@ type App struct {
 	shadow     *shadow.Engine
 	honeytoken *honeytoken.Store
 	leak       *leak.Filter
+	events     events.Store
+	alerts     *alert.Fanout
+	dash       *dashboard.Dashboard
 
 	closers []func()
 }
@@ -52,6 +59,18 @@ func Build(cfg *config.Config) (*App, error) {
 
 	app := &App{Cfg: cfg, Metrics: m, Sessions: sessions}
 
+	// Event store (M7). SQLite by default; "memory" for tests/ephemeral.
+	store, err := openStore(cfg.Storage)
+	if err != nil {
+		return nil, fmt.Errorf("event store: %w", err)
+	}
+	app.events = store
+	app.closers = append(app.closers, func() { _ = store.Close() })
+
+	// Alert sinks (M7). Always include the slog logger; add webhook/syslog when
+	// configured. Fan-out is non-blocking.
+	app.alerts = buildAlerts(cfg.Alert)
+
 	// Live gauges.
 	m.Gauge("mirage_sessions_active", func() float64 { return float64(sessions.Count()) })
 	m.Gauge("mirage_failopen_total", func() float64 { return float64(failopen.Failures()) })
@@ -61,6 +80,9 @@ func Build(cfg *config.Config) (*App, error) {
 		}
 		return 0
 	})
+	m.Gauge("mirage_added_latency_p50_ms", func() float64 { p, _, _ := m.LatencyPercentiles(); return p })
+	m.Gauge("mirage_added_latency_p95_ms", func() float64 { _, p, _ := m.LatencyPercentiles(); return p })
+	m.Gauge("mirage_added_latency_p99_ms", func() float64 { _, _, p := m.LatencyPercentiles(); return p })
 
 	// Ingress guard (M2).
 	guard, err := ingress.New(cfg.Ingress)
@@ -82,6 +104,15 @@ func Build(cfg *config.Config) (*App, error) {
 			"token_kind", t.Token.Kind, "planted_session", t.Token.SessionID,
 			"from_session", t.FromSession, "from_fp", t.FromFP,
 			"via", t.Via, "path", t.RequestPath)
+		app.alerts.Send(alert.Alert{
+			Severity: alert.Critical, Kind: "honeytoken_trip",
+			Title:  "Honeytoken presented back to Mirage",
+			Detail: "A tracked " + string(t.Token.Kind) + " planted in a shadow response was used.",
+			Session: t.FromSession, FP: t.FromFP, Path: t.RequestPath,
+		})
+		_ = app.events.Append(events.Event{Kind: events.KindTrip,
+			SessionID: t.FromSession, FP: t.FromFP, Path: t.RequestPath,
+			Detail: "honeytoken " + string(t.Token.Kind) + " via " + t.Via})
 	})
 
 	// Shadow engine (M5). Learns route shapes; serves per-session fakes.
@@ -97,6 +128,9 @@ func Build(cfg *config.Config) (*App, error) {
 	app.shadow.OnShadow = func(sid, tmpl string, planted []honeytoken.Token) {
 		m.Inc("mirage_shadow_responses_total")
 		m.Add("mirage_honeytokens_planted_total", int64(len(planted)))
+		_ = app.events.Append(events.Event{Kind: events.KindShadow,
+			SessionID: sid, Path: tmpl, Rung: "shadow",
+			Detail: fmt.Sprintf("served shadow, planted %d tokens", len(planted))})
 	}
 	m.Gauge("mirage_honeytokens_active", func() float64 { return float64(app.honeytoken.Count()) })
 	m.Gauge("mirage_shadow_shapes_learned", func() float64 { return float64(app.shadow.Shapes().Count()) })
@@ -119,6 +153,18 @@ func Build(cfg *config.Config) (*App, error) {
 		}
 		app.ladder = ladder.New(cfg.Ladder, sh, exposeRung)
 	}
+
+	// Dashboard (M7). One-click allow/block sets the session's manual verdict,
+	// honoured by the ladder hook.
+	app.dash = dashboard.New(sessions, app.honeytoken, func(sid, verdict string) {
+		for _, s := range sessions.Snapshot() {
+			if s.ID == sid {
+				s.ManualVerdict = verdict
+				_ = app.events.Append(events.Event{Kind: events.KindManual,
+					SessionID: sid, Detail: "operator set verdict=" + verdict})
+			}
+		}
+	})
 
 	// Response leak filter (M6).
 	if cfg.Leak.Enabled {
@@ -199,6 +245,21 @@ func (a *App) buildHooks() proxy.Hooks {
 	// serves it; a Served decision stops forwarding to the origin.
 	if a.ladder != nil {
 		h.Ladder = func(ctx *proxy.Context) proxy.Decision {
+			// Operator verdicts override scoring.
+			if ctx.Session != nil {
+				switch ctx.Session.ManualVerdict {
+				case "allow":
+					ctx.Rung = "monitor"
+					ctx.Session.Rung = "monitor"
+					return proxy.Continue
+				case "block":
+					ctx.Rung = "block"
+					ctx.Session.Rung = "block"
+					a.Metrics.Inc("mirage_rung_block_total")
+					a.ladder.Serve(ladder.RungBlock, ctx.W, ctx.R, ctx.Session)
+					return proxy.Served
+				}
+			}
 			rung := ladder.Decide(ctx.Score, a.Cfg.Ladder)
 			ctx.Rung = rung.String()
 			if ctx.Session != nil {
@@ -236,6 +297,16 @@ func (a *App) buildHooks() proxy.Hooks {
 						a.Metrics.Add("mirage_leak_redactions_total", int64(len(lw.Hits)))
 						slog.Warn("leak filter redacted response",
 							"path", ctx.R.URL.Path, "rules", lw.Hits)
+						sid := ""
+						if ctx.Session != nil {
+							sid = ctx.Session.ID
+						}
+						_ = a.events.Append(events.Event{Kind: events.KindLeak,
+							SessionID: sid, Path: ctx.R.URL.Path,
+							Detail: "redacted: " + strings.Join(lw.Hits, ",")})
+						a.alerts.Send(alert.Alert{Severity: alert.Warning, Kind: "leak",
+							Title: "Outgoing response redacted", Path: ctx.R.URL.Path,
+							Detail: strings.Join(lw.Hits, ",")})
 					}
 				})
 			}
@@ -331,6 +402,12 @@ func (a *App) buildAdmin() http.Handler {
 		killState.Store(boolToInt32(on))
 		fmt.Fprintf(w, "kill_switch=%v\n", on)
 	})
+
+	// Dashboard (M7): live sessions, trips, allow/block. Mounted last so the
+	// specific routes above take precedence over its "/" catch-all.
+	if a.dash != nil {
+		a.dash.Register(mux)
+	}
 
 	// Honeytoken check API (M5). Other systems report a token they saw; if it's
 	// one Mirage planted, a critical trip alert fires. Mounted on the admin mux.
@@ -441,3 +518,31 @@ func (a *App) Close() {
 }
 
 func bytesReader(b []byte) io.Reader { return bytes.NewReader(b) }
+
+// openStore builds the configured event store.
+func openStore(cfg config.Storage) (events.Store, error) {
+	switch cfg.Driver {
+	case "memory":
+		return events.NewMemory(10000), nil
+	case "", "sqlite":
+		return events.OpenSQLite(cfg.DSN)
+	default:
+		return nil, fmt.Errorf("unknown storage driver %q", cfg.Driver)
+	}
+}
+
+// buildAlerts assembles the alert fan-out from config (always includes slog).
+func buildAlerts(cfg config.Alert) *alert.Fanout {
+	sinks := []alert.Sink{alert.Logger{}}
+	if cfg.WebhookURL != "" {
+		sinks = append(sinks, alert.NewWebhook(cfg.WebhookURL))
+	}
+	if cfg.Syslog {
+		if sl, err := alert.NewSyslog(cfg.SyslogAddr); err == nil {
+			sinks = append(sinks, sl)
+		} else {
+			slog.Warn("syslog sink unavailable", "err", err)
+		}
+	}
+	return alert.NewFanout(sinks...)
+}
