@@ -5,11 +5,13 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync/atomic"
 
 	"github.com/abdallahfaisalayoob/mirage/internal/config"
 	"github.com/abdallahfaisalayoob/mirage/internal/failopen"
+	"github.com/abdallahfaisalayoob/mirage/internal/ingress"
 	"github.com/abdallahfaisalayoob/mirage/internal/metrics"
 	"github.com/abdallahfaisalayoob/mirage/internal/proxy"
 	"github.com/abdallahfaisalayoob/mirage/internal/session"
@@ -22,6 +24,8 @@ type App struct {
 	Admin    http.Handler
 	Metrics  *metrics.Registry
 	Sessions *session.Store
+
+	ingress *ingress.Guard
 
 	closers []func()
 }
@@ -44,6 +48,13 @@ func Build(cfg *config.Config) (*App, error) {
 		return 0
 	})
 
+	// Ingress guard (M2).
+	guard, err := ingress.New(cfg.Ingress)
+	if err != nil {
+		return nil, fmt.Errorf("ingress: %w", err)
+	}
+	app.ingress = guard
+
 	hooks := app.buildHooks()
 
 	p, err := proxy.New(cfg, sessions, m, hooks)
@@ -55,10 +66,38 @@ func Build(cfg *config.Config) (*App, error) {
 	return app, nil
 }
 
-// buildHooks constructs the pipeline hooks. Milestone 1 leaves them nil
-// (transparent proxy); later milestones populate them.
+// buildHooks constructs the pipeline hooks. Populated milestone by milestone.
 func (a *App) buildHooks() proxy.Hooks {
-	return proxy.Hooks{}
+	h := proxy.Hooks{}
+
+	// Ingress guard (M2). In monitor mode it records violations but never
+	// rejects; only in enforce mode does it serve an error response.
+	if a.ingress != nil {
+		h.Ingress = func(ctx *proxy.Context) proxy.Decision {
+			v := a.ingress.Inspect(ctx.R)
+			if v == nil {
+				return proxy.Continue
+			}
+			a.Metrics.Inc("mirage_ingress_violations_total")
+			reason := "ingress:" + v.Rule + " (" + v.Detail + ")"
+			ctx.Reasons = append(ctx.Reasons, reason)
+			if ctx.Session != nil {
+				ctx.Session.Reasons = append(ctx.Session.Reasons, reason)
+			}
+			if a.Cfg.EnforceActive() && !ctx.Allowlisted {
+				a.Metrics.Inc("mirage_ingress_rejected_total")
+				ctx.W.Header().Set("Content-Type", "text/plain; charset=utf-8")
+				ctx.W.WriteHeader(v.Code)
+				_, _ = ctx.W.Write([]byte("request rejected\n"))
+				return proxy.Served
+			}
+			slog.Info("ingress violation (monitor)", "rule", v.Rule,
+				"detail", v.Detail, "path", ctx.R.URL.Path)
+			return proxy.Continue
+		}
+	}
+
+	return h
 }
 
 // buildAdmin constructs the admin handler: health, metrics, kill switch.
@@ -72,7 +111,7 @@ func (a *App) buildAdmin() http.Handler {
 
 	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
-		a.Metrics.WriteTo(w)
+		a.Metrics.Render(w)
 	})
 
 	// Kill switch toggle. POST /admin/kill?on=1 flips the global switch so an

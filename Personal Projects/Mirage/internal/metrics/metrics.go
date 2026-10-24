@@ -79,8 +79,8 @@ func (r *Registry) ObserveLatency(d time.Duration) {
 	atomic.AddInt64(&r.latN, 1)
 }
 
-// WriteTo emits the metrics in Prometheus text format.
-func (r *Registry) WriteTo(w io.Writer) {
+// Render emits the metrics in Prometheus text exposition format.
+func (r *Registry) Render(w io.Writer) {
 	r.mu.Lock()
 	type kv struct {
 		k string
