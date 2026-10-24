@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 
 	"github.com/abdallahfaisalayoob/mirage/internal/alert"
+	"github.com/abdallahfaisalayoob/mirage/internal/allowlist"
 	"github.com/abdallahfaisalayoob/mirage/internal/config"
 	"github.com/abdallahfaisalayoob/mirage/internal/dashboard"
 	"github.com/abdallahfaisalayoob/mirage/internal/events"
@@ -38,6 +39,7 @@ type App struct {
 	Metrics  *metrics.Registry
 	Sessions *session.Store
 
+	allowlist  *allowlist.Allowlist
 	ingress    *ingress.Guard
 	scorer     *scorer.Scorer
 	ladder     *ladder.Ladder
@@ -83,6 +85,13 @@ func Build(cfg *config.Config) (*App, error) {
 	m.Gauge("mirage_added_latency_p50_ms", func() float64 { p, _, _ := m.LatencyPercentiles(); return p })
 	m.Gauge("mirage_added_latency_p95_ms", func() float64 { _, p, _ := m.LatencyPercentiles(); return p })
 	m.Gauge("mirage_added_latency_p99_ms", func() float64 { _, _, p := m.LatencyPercentiles(); return p })
+
+	// Allowlist (safety default). Nil resolver => system DNS for crawler checks.
+	al, err := allowlist.New(cfg.Allowlist, nil)
+	if err != nil {
+		return nil, fmt.Errorf("allowlist: %w", err)
+	}
+	app.allowlist = al
 
 	// Ingress guard (M2).
 	guard, err := ingress.New(cfg.Ingress)
@@ -189,6 +198,27 @@ func Build(cfg *config.Config) (*App, error) {
 // buildHooks constructs the pipeline hooks. Populated milestone by milestone.
 func (a *App) buildHooks() proxy.Hooks {
 	h := proxy.Hooks{}
+
+	// Allowlist (safety default): health checks, operator IPs/CIDRs, verified
+	// crawlers, and Web-Bot-Auth-signed agents are pinned to monitor and never
+	// challenged, tarpitted or shadowed. Runs first so the exemption is visible
+	// to every later stage via ctx.Allowlisted.
+	if a.allowlist != nil {
+		h.Allowlist = func(ctx *proxy.Context) {
+			ip := ""
+			if ctx.Session != nil {
+				ip = ctx.Session.IP
+			}
+			if ok, reason := a.allowlist.Check(ctx.R, ip); ok {
+				ctx.Allowlisted = true
+				ctx.AllowReason = reason
+				if ctx.Session != nil {
+					ctx.Session.Rung = "monitor"
+				}
+				a.Metrics.Inc("mirage_allowlisted_total")
+			}
+		}
+	}
 
 	// Ingress guard (M2). In monitor mode it records violations but never
 	// rejects; only in enforce mode does it serve an error response.

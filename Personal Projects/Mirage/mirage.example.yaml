@@ -72,10 +72,15 @@ leak:
 
 # --- Allowlist (trusted clients are never shadowed) ---
 allowlist:
-  ips: []                        # IPs or CIDRs
+  ips: []                        # IPs or CIDRs, e.g. ["10.0.0.0/8", "203.0.113.7"]
   paths: ["/healthz", "/livez", "/readyz"]
-  verify_crawlers: true          # rDNS-verify Googlebot/Bingbot/etc
-  web_bot_auth: true             # accept RFC 9421 HTTP Message Signatures
+  verify_crawlers: true          # rDNS-verify Googlebot/Bingbot/etc (PTR + forward-confirm)
+  web_bot_auth: true             # accept RFC 9421 Ed25519 HTTP Message Signatures
+  # Reverse-DNS suffixes a verified crawler's PTR must end with (empty => built-in set).
+  crawler_suffixes: []           # e.g. [".googlebot.com", ".search.msn.com"]
+  # Web Bot Auth: map each agent's RFC 9421 keyid to its base64 Ed25519 public
+  # key. A signed request is allowlisted only if it verifies against one of these.
+  web_bot_auth_keys: {}          # e.g. { "poqkLGiymh...": "MCowBQYDK2Vw..." }
 
 # --- Alerting ---
 alert:

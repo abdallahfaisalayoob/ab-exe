@@ -114,6 +114,12 @@ type Allowlist struct {
 	Paths          []string `yaml:"paths"`           // path prefixes (health checks)
 	VerifyCrawlers bool     `yaml:"verify_crawlers"` // rDNS-verify Google/Bing/etc
 	WebBotAuth     bool     `yaml:"web_bot_auth"`    // accept RFC 9421 signed agents
+	// CrawlerSuffixes are the reverse-DNS suffixes a verified crawler's PTR
+	// record must end with (forward-confirmed). Empty => a sensible built-in set.
+	CrawlerSuffixes []string `yaml:"crawler_suffixes"`
+	// WebBotAuthKeys maps an RFC 9421 keyid to a base64 Ed25519 public key.
+	// A request's signature is accepted only if it verifies against one of these.
+	WebBotAuthKeys map[string]string `yaml:"web_bot_auth_keys"`
 }
 
 // Alert configures outbound notifications.

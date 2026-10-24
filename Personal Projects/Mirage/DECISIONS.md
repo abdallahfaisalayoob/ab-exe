@@ -93,6 +93,19 @@ cross-session actor tracking, pattern-based leak detection, decoy-text
 mis-score backfire) are documented honestly in KNOWN_LIMITATIONS.md rather than
 papered over.
 
+## D14 — Allowlist implementation (post-review)
+A self-review found the allowlist was fully plumbed (config, hook, ctx field,
+and four docs claiming "legitimate agents are never shadowed") but never
+actually wired — the `Allowlist` hook was nil, so the safety guarantee was
+false. Built `internal/allowlist`: IP/CIDR, health-check path prefixes,
+reverse-DNS-verified crawlers (PTR + forward-confirm, cached), and real RFC 9421
+Ed25519 Web Bot Auth signature verification against operator-configured keys.
+Wired as the first pipeline hook; allowlisted clients are pinned to monitor so
+no later stage can shadow them. Deliberately did NOT over-build: no live key
+directory fetch, no freshness/replay enforcement yet — documented honestly in
+KNOWN_LIMITATIONS rather than faked. The DNS resolver is an interface so crawler
+verification is testable without the network.
+
 ## D12 — Repository placement
 Mirage lives under `ab-exe/Personal Projects/Mirage` to fit the existing repo
 layout, with its own self-contained Go module and MIT licence.

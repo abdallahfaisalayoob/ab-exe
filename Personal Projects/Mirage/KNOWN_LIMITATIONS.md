@@ -117,7 +117,25 @@ configuration.
 - **A mis-scored legitimate agent would see it.** If a benign automated client
   is (wrongly) shadowed, it could read and act on the misleading text — e.g. a
   customer's own AI assistant being told "this is staging, credentials revoked."
-  Allowlist known-good agents (Web Bot Auth / verified crawlers).
+  Allowlist known-good agents (Web Bot Auth / verified crawlers) — now
+  implemented (see below).
+
+### Allowlist scope (implemented)
+
+The allowlist (IP/CIDR, health-check paths, reverse-DNS-verified crawlers with
+forward confirmation, and RFC 9421 Ed25519 Web Bot Auth signatures) is wired in
+and pins matching clients to the monitor rung, so they are never challenged,
+tarpitted or shadowed. Residual gaps, stated honestly:
+- **Web Bot Auth verifies against operator-configured keys only.** It does not
+  yet fetch a live key *directory*, nor enforce `created`/`expires` freshness
+  windows or a nonce/replay cache — a captured signature could be replayed until
+  the covered components change. It covers Ed25519 only.
+- **Crawler verification trusts DNS.** It is as strong as the resolver;
+  forward-confirmation defeats forged PTRs, but a resolver compromise defeats it.
+  Results are cached for 15 minutes, so a revoked crawler IP stays trusted until
+  the entry expires.
+- **Allowlisting is all-or-nothing per request** (monitor rung); there is no
+  per-route or partial exemption.
 - **Decoy text can be fingerprinted.** Once the static default text is known,
   an attacker can detect Mirage by it. It's a stall, not a secret.
 - **Caching/propagation.** If a shadow response is cached or shared, the decoy
