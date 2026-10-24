@@ -25,6 +25,20 @@ source file (`internal/scorer/weights.go`) by `mirage-sim train`. Heuristics
 remain as hard-signal overrides (e.g. honeytoken bait is deterministic, not
 probabilistic).
 
+## D4a — Shipped weights are hand-partitioned, not auto-fitted
+`mirage-sim train` fits logistic regression on simulator features and works,
+but with the current three profiles the agent-axis and hostile-axis labels are
+identical (scanner and agent are both automated AND hostile; humans neither),
+so training collapses to a single "badness" discriminator and loses the
+two-axis semantics the reasons depend on. Splitting the axes cleanly needs a
+fourth profile — benign automation (a monitoring bot / verified crawler:
+agent=1, hostile=0). Until that exists, the SHIPPED model is the hand-tuned,
+semantically-partitioned `weights.go` (agent = timing/fingerprint; hostile =
+enumeration/errors/mutation), which keeps per-axis reasons meaningful. `train`
+is kept as the documented refit path. This matches the brief's priority:
+"keep the ML small and explainable; the value is the deception architecture."
+Measured on the simulator: 0% human FP, 100% scanner, ~67% agent shadow.
+
 ## D5 — Session identity
 Primary key is a signed cookie `__mirage_sid` (HMAC with server secret).
 Cookie-dropping clients fall back to `IP + coarse fingerprint`. This means a

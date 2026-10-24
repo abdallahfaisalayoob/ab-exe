@@ -55,6 +55,19 @@ type Session struct {
 	ManualVerdict string
 }
 
+// New builds a bare session with the given id and window capacity. Used by the
+// traffic simulator and tests to construct sessions outside the HTTP path.
+func New(id string, windowCap int) *Session {
+	if windowCap <= 0 {
+		windowCap = 64
+	}
+	now := time.Now()
+	return &Session{ID: id, Created: now, LastSeen: now, cap: windowCap, Rung: "monitor"}
+}
+
+// SetFP sets the fingerprint (used by the simulator/tests).
+func (s *Session) SetFP(fp fingerprint.Print) { s.FP = fp }
+
 // Add appends a summary, evicting the oldest when the window is full.
 func (s *Session) Add(rs ReqSummary) {
 	s.mu.Lock()

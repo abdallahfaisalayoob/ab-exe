@@ -14,6 +14,7 @@ import (
 	"github.com/abdallahfaisalayoob/mirage/internal/ingress"
 	"github.com/abdallahfaisalayoob/mirage/internal/metrics"
 	"github.com/abdallahfaisalayoob/mirage/internal/proxy"
+	"github.com/abdallahfaisalayoob/mirage/internal/scorer"
 	"github.com/abdallahfaisalayoob/mirage/internal/session"
 )
 
@@ -26,6 +27,7 @@ type App struct {
 	Sessions *session.Store
 
 	ingress *ingress.Guard
+	scorer  *scorer.Scorer
 
 	closers []func()
 }
@@ -54,6 +56,11 @@ func Build(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("ingress: %w", err)
 	}
 	app.ingress = guard
+
+	// Session scorer (M3).
+	if cfg.Scorer.Enabled {
+		app.scorer = scorer.New()
+	}
 
 	hooks := app.buildHooks()
 
@@ -94,6 +101,26 @@ func (a *App) buildHooks() proxy.Hooks {
 			slog.Info("ingress violation (monitor)", "rule", v.Rule,
 				"detail", v.Detail, "path", ctx.R.URL.Path)
 			return proxy.Continue
+		}
+	}
+
+	// Session scorer (M3). Runs every request; fills ctx with the verdict and
+	// its reasons. In monitor mode this only annotates/logs; the ladder (M4)
+	// decides what to do with the score, and only in enforce mode.
+	if a.scorer != nil {
+		h.Score = func(ctx *proxy.Context) {
+			if ctx.Session == nil {
+				return
+			}
+			res := a.scorer.Score(ctx.Session)
+			ctx.Score, ctx.Agent, ctx.Hostile = res.Score, res.Agent, res.Hostile
+			ctx.Reasons = append(ctx.Reasons, res.Reasons...)
+			a.Metrics.Inc("mirage_scored_total")
+			if res.Score >= 82 {
+				a.Metrics.Inc("mirage_score_ge82_total")
+			} else if res.Score >= 55 {
+				a.Metrics.Inc("mirage_score_ge55_total")
+			}
 		}
 	}
 
