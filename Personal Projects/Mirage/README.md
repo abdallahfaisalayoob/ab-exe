@@ -17,6 +17,26 @@ patched.
 
 ---
 
+## About this project
+
+I built Mirage after the **PHP2Shell incident** — watching AI agents find and
+mass-exploit a vulnerability *before* disclosure, and reading how request
+inspection alone couldn't tell the exploits from normal traffic, got me
+thinking about what defence looks like when the attacker is an automated agent
+rather than a person. The answer I wanted to explore was misdirection and
+response-side inspection instead of plain blocking, so I turned it into a real,
+self-hostable proxy.
+
+I used **Claude** heavily on this one: for planning and architecture and for
+writing a good chunk of the code, which I then reviewed, tested and shaped into
+what's here. I'm being upfront about that because the point of the project was
+to learn the *design* — the deception architecture — and Claude was a big part
+of how I got there.
+
+— Abdallah Faisal Ayoob
+
+---
+
 ## Why this exists
 
 Request inspection alone can't separate a novel exploit from normal traffic —
