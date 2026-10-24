@@ -18,6 +18,7 @@ import (
 	"github.com/abdallahfaisalayoob/mirage/internal/honeytoken"
 	"github.com/abdallahfaisalayoob/mirage/internal/ingress"
 	"github.com/abdallahfaisalayoob/mirage/internal/ladder"
+	"github.com/abdallahfaisalayoob/mirage/internal/leak"
 	"github.com/abdallahfaisalayoob/mirage/internal/metrics"
 	"github.com/abdallahfaisalayoob/mirage/internal/proxy"
 	"github.com/abdallahfaisalayoob/mirage/internal/scorer"
@@ -38,6 +39,7 @@ type App struct {
 	ladder     *ladder.Ladder
 	shadow     *shadow.Engine
 	honeytoken *honeytoken.Store
+	leak       *leak.Filter
 
 	closers []func()
 }
@@ -116,6 +118,15 @@ func Build(cfg *config.Config) (*App, error) {
 			}
 		}
 		app.ladder = ladder.New(cfg.Ladder, sh, exposeRung)
+	}
+
+	// Response leak filter (M6).
+	if cfg.Leak.Enabled {
+		lf, err := leak.New(cfg.Leak)
+		if err != nil {
+			return nil, fmt.Errorf("leak filter: %w", err)
+		}
+		app.leak = lf
 	}
 
 	hooks := app.buildHooks()
@@ -204,15 +215,43 @@ func (a *App) buildHooks() proxy.Hooks {
 		}
 	}
 
-	// Response-learning tap (M5). On the ORIGIN path only (shadow responses are
-	// Served and never reach here), sample real responses to learn route shapes
-	// for the shadow engine. Bounded buffering protects the latency budget.
-	if a.shadow != nil && a.Cfg.Shadow.LearnFromAPI {
+	// Response wrapping (M5 shape learning + M6 leak filter), both on the ORIGIN
+	// path only (shadow responses are Served and never reach here). When both
+	// are active the leak Writer sits OUTERMOST so redaction happens last,
+	// before bytes leave; the learn writer taps the (pre-redaction) real body
+	// so shape learning sees the true structure.
+	learnOn := a.shadow != nil && a.Cfg.Shadow.LearnFromAPI
+	leakOn := a.leak != nil
+	if learnOn || leakOn {
 		h.WrapResponse = func(ctx *proxy.Context, w http.ResponseWriter) (http.ResponseWriter, func()) {
-			lw := &learnWriter{ResponseWriter: w, cap: 32 << 10}
-			return lw, func() {
-				a.shadow.Shapes().Observe(ctx.Template, lw.status,
-					lw.Header().Get("Content-Type"), headerNamesOf(lw.Header()), lw.buf)
+			var finals []func()
+			cur := w
+
+			if leakOn {
+				lw := a.leak.Wrap(cur)
+				cur = lw
+				finals = append(finals, func() {
+					lw.Finalise()
+					if len(lw.Hits) > 0 {
+						a.Metrics.Add("mirage_leak_redactions_total", int64(len(lw.Hits)))
+						slog.Warn("leak filter redacted response",
+							"path", ctx.R.URL.Path, "rules", lw.Hits)
+					}
+				})
+			}
+			if learnOn {
+				lrn := &learnWriter{ResponseWriter: cur, cap: 32 << 10}
+				cur = lrn
+				finals = append(finals, func() {
+					a.shadow.Shapes().Observe(ctx.Template, lrn.status,
+						lrn.Header().Get("Content-Type"), headerNamesOf(lrn.Header()), lrn.buf)
+				})
+			}
+			return cur, func() {
+				// Run finalisers inner-first: learn tap, then leak flush.
+				for _, fn := range finals {
+					fn()
+				}
 			}
 		}
 	}
