@@ -50,7 +50,7 @@ func TestShadowConsistencyWithinSession(t *testing.T) {
 func TestPlantedTokensAreInertAndTracked(t *testing.T) {
 	e, ht := newEngine(t)
 	sc := &Schema{IsJSON: true, Root: &node{Kind: kObject,
-		Keys:   []string{"api_key", "password"},
+		Keys: []string{"api_key", "password"},
 		Fields: map[string]*node{
 			"api_key":  {Kind: kSecret, FieldName: "api_key"},
 			"password": {Kind: kSecret, FieldName: "password"},
@@ -73,11 +73,11 @@ func TestPlantedTokensAreInertAndTracked(t *testing.T) {
 func assertInert(t *testing.T, s string) {
 	t.Helper()
 	realKeyShapes := []*regexp.Regexp{
-		regexp.MustCompile(`sk_live_[0-9a-zA-Z]{24,}`),        // Stripe live secret
-		regexp.MustCompile(`AKIA[0-9A-Z]{16}`),                 // real AWS access key id (exactly 16 after AKIA)
-		regexp.MustCompile(`ghp_[0-9A-Za-z]{36}`),              // GitHub PAT
-		regexp.MustCompile(`AIza[0-9A-Za-z\-_]{35}`),           // Google API key
-		regexp.MustCompile(`xox[baprs]-[0-9A-Za-z\-]{10,}`),    // Slack token
+		regexp.MustCompile(`sk_live_[0-9a-zA-Z]{24,}`),      // Stripe live secret
+		regexp.MustCompile(`AKIA[0-9A-Z]{16}`),              // real AWS access key id (exactly 16 after AKIA)
+		regexp.MustCompile(`ghp_[0-9A-Za-z]{36}`),           // GitHub PAT
+		regexp.MustCompile(`AIza[0-9A-Za-z\-_]{35}`),        // Google API key
+		regexp.MustCompile(`xox[baprs]-[0-9A-Za-z\-]{10,}`), // Slack token
 	}
 	for _, re := range realKeyShapes {
 		if re.MatchString(s) {

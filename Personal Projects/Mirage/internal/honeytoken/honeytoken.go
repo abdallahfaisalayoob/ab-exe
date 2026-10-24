@@ -46,12 +46,12 @@ type Token struct {
 
 // Trip records a honeytoken being presented back to Mirage.
 type Trip struct {
-	Token        Token
-	PresentedAt  time.Time
-	FromSession  string
-	FromFP       string
-	Via          string // "request" or "check-api"
-	RequestPath  string
+	Token       Token
+	PresentedAt time.Time
+	FromSession string
+	FromFP      string
+	Via         string // "request" or "check-api"
+	RequestPath string
 }
 
 // AlertFunc is called (once) when a token trips. Wired to the alert pipeline.
@@ -157,7 +157,6 @@ func expand(seed string, n int) string {
 	}
 	return out[:n]
 }
-
 
 func (s *Store) prefix2() string {
 	p := strings.ToUpper(s.prefix)

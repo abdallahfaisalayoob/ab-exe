@@ -23,9 +23,9 @@ type Engine struct {
 
 // Config controls the engine.
 type Config struct {
-	DecoyText     bool   // embed defensive decoy text (mislead-only)
-	HoneytokenEnv bool   // serve fake .env/config/admin endpoints
-	LearnTraffic  bool   // learn shapes from live traffic
+	DecoyText     bool // embed defensive decoy text (mislead-only)
+	HoneytokenEnv bool // serve fake .env/config/admin endpoints
+	LearnTraffic  bool // learn shapes from live traffic
 }
 
 // New builds a shadow engine.
@@ -99,7 +99,7 @@ func (e *Engine) synthesise(r *http.Request, sid, fpID, template, id string) ([]
 	if wantsJSON {
 		// A generic object with an id, a name, a timestamp and a secret slot.
 		sc := &Schema{IsJSON: true, Root: &node{Kind: kObject,
-			Keys:   []string{"id", "name", "created_at", "api_key", "status"},
+			Keys: []string{"id", "name", "created_at", "api_key", "status"},
 			Fields: map[string]*node{
 				"id":         {Kind: kInt, FieldName: "id"},
 				"name":       {Kind: kName, FieldName: "name"},

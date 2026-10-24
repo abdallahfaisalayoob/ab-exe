@@ -59,8 +59,8 @@ type Schema struct {
 
 // Store holds learned schemas keyed by route template.
 type Store struct {
-	mu   sync.RWMutex
-	byT  map[string]*Schema
+	mu  sync.RWMutex
+	byT map[string]*Schema
 	// maxSamples caps how many observations refine a schema (cheap stability).
 	maxSamples int
 }

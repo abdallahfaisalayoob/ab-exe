@@ -82,13 +82,13 @@ func (d *Dashboard) apiSessions(w http.ResponseWriter, r *http.Request) {
 
 // tripView is the JSON shape for the honeytoken trips table.
 type tripView struct {
-	At          string `json:"at"`
-	Kind        string `json:"kind"`
-	Planted     string `json:"planted_session"`
-	From        string `json:"from_session"`
-	FromFP      string `json:"from_fp"`
-	Via         string `json:"via"`
-	Path        string `json:"path"`
+	At      string `json:"at"`
+	Kind    string `json:"kind"`
+	Planted string `json:"planted_session"`
+	From    string `json:"from_session"`
+	FromFP  string `json:"from_fp"`
+	Via     string `json:"via"`
+	Path    string `json:"path"`
 }
 
 func (d *Dashboard) apiTrips(w http.ResponseWriter, r *http.Request) {

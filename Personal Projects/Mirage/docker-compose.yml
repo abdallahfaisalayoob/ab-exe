@@ -1,0 +1,56 @@
+# Mirage quickstart + isolated test harness.
+#
+#   docker compose up                 → Mirage in front of the toy app
+#   docker compose --profile sim up    → also run the labelled traffic simulator
+#
+# The `sim` profile and the toy app run on an INTERNAL-ONLY network with no
+# route to the internet, so no simulated traffic can ever leave the host.
+
+services:
+  # The app Mirage protects (a deliberately vulnerable-SHAPED toy app).
+  app:
+    build:
+      context: .
+      dockerfile: testbed/toyapp/Dockerfile
+    environment:
+      TOYAPP_LISTEN: ":3000"
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "/toyapp", "-healthcheck"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+
+  # Mirage reverse proxy. Exposes the proxy and the admin/dashboard to the host.
+  mirage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on: [app]
+    environment:
+      MIRAGE_ORIGIN: "http://app:3000"
+      MIRAGE_LISTEN: ":8080"
+      MIRAGE_SECRET: "change-me-in-production"
+    command: ["-config", "/etc/mirage/mirage.yaml"]
+    volumes:
+      - ./mirage.example.yaml:/etc/mirage/mirage.yaml:ro
+    ports:
+      - "8080:8080"   # proxied traffic
+      - "9900:9900"   # admin + dashboard + /metrics
+    networks: [internal, edge]
+
+  # Traffic simulator (opt-in). Drives the three labelled profiles through
+  # Mirage and prints detection/FP/latency. Internal network only.
+  sim:
+    build:
+      context: .
+      dockerfile: testbed/sim.Dockerfile
+    depends_on: [mirage]
+    profiles: ["sim"]
+    command: ["run", "-target", "http://mirage:8080", "-n", "15"]
+    networks: [internal]
+
+networks:
+  internal:
+    internal: true   # no route to the internet
+  edge: {}

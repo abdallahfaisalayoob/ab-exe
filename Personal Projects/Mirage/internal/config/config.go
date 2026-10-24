@@ -83,10 +83,10 @@ type Ladder struct {
 
 // Shadow configures the deception engine.
 type Shadow struct {
-	Enabled      bool `yaml:"enabled"`
-	MinAgent     int  `yaml:"min_agent"`     // extra gate: agent score
-	MinHostile   int  `yaml:"min_hostile"`   // extra gate: hostile score
-	LearnFromAPI bool `yaml:"learn_traffic"` // learn route shapes from live traffic
+	Enabled      bool   `yaml:"enabled"`
+	MinAgent     int    `yaml:"min_agent"`     // extra gate: agent score
+	MinHostile   int    `yaml:"min_hostile"`   // extra gate: hostile score
+	LearnFromAPI bool   `yaml:"learn_traffic"` // learn route shapes from live traffic
 	OpenAPIFile  string `yaml:"openapi_file"`
 	// DecoyText enables defensive prompt-injection text in shadow responses.
 	// Off by default. Can only mislead/stall; never hack-back (enforced).
@@ -97,13 +97,13 @@ type Shadow struct {
 
 // Leak configures the outgoing-response inspector.
 type Leak struct {
-	Enabled         bool  `yaml:"enabled"`
-	MaxCookieBytes  int   `yaml:"max_cookie_bytes"`
-	BufferCapBytes  int64 `yaml:"buffer_cap_bytes"`
-	RedactKeys      bool  `yaml:"redact_keys"`
-	RedactTraces    bool  `yaml:"redact_traces"`
-	RedactPHPInfo   bool  `yaml:"redact_phpinfo"`
-	ScanCompressed  bool  `yaml:"scan_compressed"`
+	Enabled        bool  `yaml:"enabled"`
+	MaxCookieBytes int   `yaml:"max_cookie_bytes"`
+	BufferCapBytes int64 `yaml:"buffer_cap_bytes"`
+	RedactKeys     bool  `yaml:"redact_keys"`
+	RedactTraces   bool  `yaml:"redact_traces"`
+	RedactPHPInfo  bool  `yaml:"redact_phpinfo"`
+	ScanCompressed bool  `yaml:"scan_compressed"`
 	// ExtraPatterns are user regexes; matches are redacted.
 	ExtraPatterns []string `yaml:"extra_patterns"`
 }

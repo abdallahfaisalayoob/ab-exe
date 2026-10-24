@@ -187,16 +187,20 @@ type reasonSet struct {
 }
 
 var agentReasons = reasonSet{
-	MedianGap:      func(x float64) (string, bool) { return "very short, machine-like request intervals", x > 0.4 },
-	ThinkBandShare: func(x float64) (string, bool) { return fmt.Sprintf("LLM-style think-time pauses (%.0f%% of gaps)", x*100), x > 0.3 },
+	MedianGap: func(x float64) (string, bool) { return "very short, machine-like request intervals", x > 0.4 },
+	ThinkBandShare: func(x float64) (string, bool) {
+		return fmt.Sprintf("LLM-style think-time pauses (%.0f%% of gaps)", x*100), x > 0.3
+	},
 	GapRegularity:  func(x float64) (string, bool) { return "metronomic request timing (scripted)", x > 0.55 },
 	FPInconsistent: func(float64) (string, bool) { return "client fingerprint inconsistent with claimed browser", true },
 	WriteRatio:     func(x float64) (string, bool) { return "unusually high share of state-changing requests", x > 0.5 },
 }
 
 var hostileReasons = reasonSet{
-	Breadth:       func(x float64) (string, bool) { return "broad, systematic endpoint enumeration", x > 0.6 },
-	NotFoundRatio: func(x float64) (string, bool) { return fmt.Sprintf("high 404 ratio (%.0f%%), probing for hidden paths", x*100), x > 0.25 },
+	Breadth: func(x float64) (string, bool) { return "broad, systematic endpoint enumeration", x > 0.6 },
+	NotFoundRatio: func(x float64) (string, bool) {
+		return fmt.Sprintf("high 404 ratio (%.0f%%), probing for hidden paths", x*100), x > 0.25
+	},
 	ErrorSeek:     func(x float64) (string, bool) { return "error-seeking: requests chase 4xx/5xx responses", x > 0.3 },
 	MutationShare: func(x float64) (string, bool) { return "payload mutation after errors/blocks", x > 0.1 },
 }

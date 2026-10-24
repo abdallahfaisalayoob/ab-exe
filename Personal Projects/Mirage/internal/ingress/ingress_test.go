@@ -3,8 +3,8 @@ package ingress
 import (
 	"bytes"
 	"io"
-	"os"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -112,9 +112,9 @@ func TestVirtualPatchPack(t *testing.T) {
 func TestVirtualPatchNoFalsePositive(t *testing.T) {
 	g := testGuard(t)
 	benign := []struct{ path, query string }{
-		{"/search", "q=union square new york"},    // "union" but not UNION SELECT
-		{"/docs", "topic=passwd-reset"},            // contains "passwd" but not /etc/passwd
-		{"/products", "id=42&sort=price"},          // ordinary
+		{"/search", "q=union square new york"}, // "union" but not UNION SELECT
+		{"/docs", "topic=passwd-reset"},        // contains "passwd" but not /etc/passwd
+		{"/products", "id=42&sort=price"},      // ordinary
 	}
 	for _, c := range benign {
 		r := httptest.NewRequest("GET", c.path, nil)

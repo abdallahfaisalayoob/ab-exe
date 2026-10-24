@@ -106,8 +106,8 @@ func Build(cfg *config.Config) (*App, error) {
 			"via", t.Via, "path", t.RequestPath)
 		app.alerts.Send(alert.Alert{
 			Severity: alert.Critical, Kind: "honeytoken_trip",
-			Title:  "Honeytoken presented back to Mirage",
-			Detail: "A tracked " + string(t.Token.Kind) + " planted in a shadow response was used.",
+			Title:   "Honeytoken presented back to Mirage",
+			Detail:  "A tracked " + string(t.Token.Kind) + " planted in a shadow response was used.",
 			Session: t.FromSession, FP: t.FromFP, Path: t.RequestPath,
 		})
 		_ = app.events.Append(events.Event{Kind: events.KindTrip,

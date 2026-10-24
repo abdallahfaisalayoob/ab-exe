@@ -24,6 +24,8 @@ func runLive(args []string) {
 	target := fs.String("target", "http://127.0.0.1:8080", "Mirage proxy base URL")
 	n := fs.Int("n", 20, "sessions per profile")
 	seed := fs.Int64("seed", 7, "rng seed")
+	speed := fs.Float64("speed", 25, "time-compression factor for replayed think-time gaps")
+	capMS := fs.Int("cap-ms", 400, "max replayed gap in ms (keeps the run quick)")
 	_ = fs.Parse(args)
 
 	rng := newRNG(*seed)
@@ -36,7 +38,21 @@ func runLive(args []string) {
 			s := sim.Gen(p, rng, i)
 			jar, _ := cookiejar.New(nil)
 			client := &http.Client{Jar: jar, Timeout: 10 * time.Second}
-			for _, rs := range s.Window() {
+			win := s.Window()
+			for j, rs := range win {
+				// Replay the recorded think-time gap, time-compressed, so the
+				// scorer sees realistic RELATIVE cadence (its regularity feature
+				// is scale-invariant). Keeps the run quick via the cap.
+				if j > 0 {
+					gap := rs.At.Sub(win[j-1].At).Seconds() / *speed
+					d := time.Duration(gap * float64(time.Second))
+					if d > time.Duration(*capMS)*time.Millisecond {
+						d = time.Duration(*capMS) * time.Millisecond
+					}
+					if d > 0 {
+						time.Sleep(d)
+					}
+				}
 				url := *target + rs.RawPath
 				var body io.Reader
 				if rs.Method == "POST" {

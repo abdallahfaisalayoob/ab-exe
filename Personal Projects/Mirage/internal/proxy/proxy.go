@@ -84,11 +84,11 @@ type Hooks struct {
 
 // Proxy is the Mirage reverse proxy.
 type Proxy struct {
-	cfg      *config.Config
-	sessions *session.Store
-	metrics  *metrics.Registry
-	hooks    Hooks
-	rp       *httputil.ReverseProxy
+	cfg       *config.Config
+	sessions  *session.Store
+	metrics   *metrics.Registry
+	hooks     Hooks
+	rp        *httputil.ReverseProxy
 	originURL *url.URL
 }
 

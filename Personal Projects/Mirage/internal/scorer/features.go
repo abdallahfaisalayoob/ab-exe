@@ -20,17 +20,17 @@ import (
 // Features is the fixed feature vector extracted from a session window.
 // Every field is normalised to roughly [0,1] so weights are comparable.
 type Features struct {
-	MedianGap        float64 // normalised: 1 at 0s, →0 as gaps grow (fast = automated)
-	ThinkBandShare   float64 // share of post-response gaps in the 1.5–20s LLM band
-	GapRegularity    float64 // 1 = metronomic (low CV), 0 = human-irregular
-	Breadth          float64 // distinct templates per minute, normalised
-	NotFoundRatio    float64 // share of 404s
-	ErrorSeek        float64 // share of requests right after a 4xx/5xx
-	MutationShare    float64 // same route, changed payload shape, after an error
-	FPInconsistent   float64 // 0/1 UA vs headers/TLS contradiction
-	Baited           float64 // 0/1 acted on planted bait (hard signal)
-	WriteRatio       float64 // share of state-changing methods
-	Count            int     // window size (context, not a weighted feature)
+	MedianGap      float64 // normalised: 1 at 0s, →0 as gaps grow (fast = automated)
+	ThinkBandShare float64 // share of post-response gaps in the 1.5–20s LLM band
+	GapRegularity  float64 // 1 = metronomic (low CV), 0 = human-irregular
+	Breadth        float64 // distinct templates per minute, normalised
+	NotFoundRatio  float64 // share of 404s
+	ErrorSeek      float64 // share of requests right after a 4xx/5xx
+	MutationShare  float64 // same route, changed payload shape, after an error
+	FPInconsistent float64 // 0/1 UA vs headers/TLS contradiction
+	Baited         float64 // 0/1 acted on planted bait (hard signal)
+	WriteRatio     float64 // share of state-changing methods
+	Count          int     // window size (context, not a weighted feature)
 }
 
 // think-time band for LLM tool-call loops.

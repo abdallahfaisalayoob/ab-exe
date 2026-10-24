@@ -108,12 +108,12 @@ func (s *Session) Len() int {
 
 // Store is a concurrent in-memory map of sessions with periodic eviction.
 type Store struct {
-	secret  []byte
-	cap     int
-	ttl     time.Duration
-	mu      sync.RWMutex
-	byID    map[string]*Session
-	lastGC  time.Time
+	secret []byte
+	cap    int
+	ttl    time.Duration
+	mu     sync.RWMutex
+	byID   map[string]*Session
+	lastGC time.Time
 }
 
 // NewStore builds a session store. windowCap is requests retained per session;

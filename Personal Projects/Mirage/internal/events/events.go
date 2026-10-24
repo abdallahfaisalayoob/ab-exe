@@ -13,13 +13,13 @@ import (
 type Kind string
 
 const (
-	KindScore     Kind = "score"      // a session was scored
-	KindRung      Kind = "rung"       // a ladder rung fired
-	KindShadow    Kind = "shadow"     // a session was shadowed
-	KindTrip      Kind = "honeytoken" // a honeytoken tripped
-	KindLeak      Kind = "leak"       // the leak filter redacted a response
-	KindIngress   Kind = "ingress"    // an ingress violation
-	KindManual    Kind = "manual"     // an operator allow/block
+	KindScore   Kind = "score"      // a session was scored
+	KindRung    Kind = "rung"       // a ladder rung fired
+	KindShadow  Kind = "shadow"     // a session was shadowed
+	KindTrip    Kind = "honeytoken" // a honeytoken tripped
+	KindLeak    Kind = "leak"       // the leak filter redacted a response
+	KindIngress Kind = "ingress"    // an ingress violation
+	KindManual  Kind = "manual"     // an operator allow/block
 )
 
 // Event is one recorded event. Fields are already redacted by the caller.
