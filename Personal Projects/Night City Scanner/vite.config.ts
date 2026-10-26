@@ -94,5 +94,6 @@ export default defineConfig({
     chunkSizeWarningLimit: 12000,
   },
   server: { port: 5173 },
-  preview: { port: 4173 },
+  // Allow Cloudflare quick-tunnel addresses so the app can be tested on an iPhone over HTTPS.
+  preview: { port: 4173, allowedHosts: ['.trycloudflare.com'] },
 });
