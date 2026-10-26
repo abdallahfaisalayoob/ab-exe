@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!--CSP-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#07080c" />
+    <meta name="description" content="Private, on-device document scanner. No accounts, no uploads, no watermarks." />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- iOS Home Screen web app -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NC Scanner" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+    <!-- Launch images: iPhone 16 Pro (402×874 @3x) and 16 Pro Max (440×956 @3x) -->
+    <link rel="apple-touch-startup-image" href="splash/splash-1206x2622.png"
+      media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="splash/splash-1320x2868.png"
+      media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="splash/splash-1179x2556.png"
+      media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="splash/splash-1290x2796.png"
+      media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+
+    <title>Night City Scanner</title>
+    <style>
+      /* Boot splash: visible until React mounts. Kept inline so it paints instantly. */
+      html, body { margin: 0; background: #07080c; }
+      #boot {
+        position: fixed; inset: 0; display: grid; place-items: center;
+        background: radial-gradient(120% 70% at 50% 110%, rgba(255, 42, 109, 0.16), transparent 60%),
+          radial-gradient(90% 60% at 50% -10%, rgba(45, 226, 230, 0.12), transparent 60%), #07080c;
+        color: #eef3f8; font: 600 13px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0.32em; text-transform: uppercase;
+      }
+      #boot .mark { width: 72px; height: 72px; margin: 0 auto 18px; }
+      #boot .bar { width: 120px; height: 2px; margin: 16px auto 0; background: rgba(45, 226, 230, 0.15); overflow: hidden; }
+      #boot .bar::after {
+        content: ''; display: block; width: 40%; height: 100%; background: #2de2e6;
+        animation: boot 1.1s ease-in-out infinite;
+      }
+      @keyframes boot { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+      @media (prefers-reduced-motion: reduce) { #boot .bar::after { animation: none; width: 100%; } }
+    </style>
+  </head>
+  <body>
+    <div id="boot" aria-hidden="true">
+      <div>
+        <svg class="mark" viewBox="0 0 64 64" fill="none">
+          <path d="M10 4h34l10 10v46H10z" stroke="#2de2e6" stroke-width="2.5" />
+          <path d="M44 4v10h10" stroke="#2de2e6" stroke-width="2.5" />
+          <path d="M4 32h56" stroke="#ff2a6d" stroke-width="3" />
+          <path d="M18 22h20M18 44h28M18 50h18" stroke="#eef3f8" stroke-opacity=".5" stroke-width="2.5" />
+        </svg>
+        <div>Night City Scanner</div>
+        <div class="bar"></div>
+      </div>
+    </div>
+    <div id="root"></div>
+    <noscript>Night City Scanner needs JavaScript enabled.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

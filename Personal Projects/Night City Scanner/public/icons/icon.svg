@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#11141c"/>
+      <stop offset="1" stop-color="#07080c"/>
+    </linearGradient>
+    <radialGradient id="glowM" cx="0.2" cy="1" r="0.8">
+      <stop offset="0" stop-color="#ff2a6d" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#ff2a6d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowC" cx="0.9" cy="0" r="0.7">
+      <stop offset="0" stop-color="#2de2e6" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#2de2e6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beam" x1="96" y1="0" x2="416" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff2a6d"/>
+      <stop offset="1" stop-color="#2de2e6"/>
+    </linearGradient>
+    <filter id="blur" filterUnits="userSpaceOnUse" x="40" y="200" width="432" height="124"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glowM)"/>
+  <rect width="512" height="512" fill="url(#glowC)"/>
+  <g fill="none" stroke-linejoin="round">
+    <path d="M150 92h150l62 62v266H150z" stroke="#2de2e6" stroke-width="14"/>
+    <path d="M300 92v62h62" stroke="#2de2e6" stroke-width="14"/>
+    <path d="M190 190h90M190 340h132M190 376h86" stroke="#eef3f8" stroke-opacity=".5" stroke-width="14" stroke-linecap="round"/>
+  </g>
+  <path d="M96 262h320" stroke="url(#beam)" stroke-width="26" stroke-linecap="round" filter="url(#blur)" opacity=".9"/>
+  <path d="M96 262h320" stroke="url(#beam)" stroke-width="16" stroke-linecap="round"/>
+</svg>

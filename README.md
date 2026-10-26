@@ -33,6 +33,7 @@ ab.exe/
     ├── Full Stack App/        — FastAPI backend + React/TypeScript frontend (PCB CNC simulator)
     │   ├── backend/           — Python FastAPI: vision processing, simulation engine, AI diagnostics
     │   └── frontend/          — React + Three.js + Tailwind: 3D CNC visualisation, HLS video
+    ├── Night City Scanner/    — Private, encrypted iPhone document scanner PWA (React + TypeScript + OpenCV.js)
     ├── Node Web Project/      — Lightweight Node.js + Express web server with frontend
     └── Full Stack App/
         └── python_app/        — Laser engraving UI (Python)
@@ -70,6 +71,9 @@ A fun personal project using OpenCV's Haar cascade classifier to do real-time fa
 The most ambitious project — a full-stack app to simulate CNC PCB milling:
 - **Backend**: Python FastAPI with vision processing (OpenCV), PDF parsing (PyMuPDF), AI diagnostics, and toolpath generation
 - **Frontend**: React + Three.js 3D scene with animated CNC machine, HLS video streaming, and a real-time simulation timeline
+
+### Night City Scanner 🌃
+A cyberpunk-styled document scanner web app for iPhone: live edge detection and auto-capture (OpenCV.js in Web Workers), perspective correction and enhancement filters, on-device OCR (Tesseract), searchable and AES-256 password-protected PDFs, and an encrypted library behind a passcode lock (PBKDF2 + AES-GCM). No accounts, uploads or watermarks. See its [README](Personal%20Projects/Night%20City%20Scanner/README.md).
 
 ---
 
