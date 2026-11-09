@@ -159,8 +159,9 @@ function TimetableImport({ onClose, onDone }: { onClose: () => void; onDone: () 
     const sheets = await call<any[]>("grid.read", { path });
     const r = parseTimetable(sheets);
     setRes({ ...r, file: path.split(/[\\/]/).pop()! });
-    // A personal timetable is small — select everything. A university-wide one is not: let the user choose.
-    setPicked(new Set(r.courses.length <= 12 ? r.courses.map((c) => c.key) : []));
+    // A personal timetable has no overlapping classes — select everything. If classes overlap, this is
+    // probably a department-wide sheet with several sections, so the user picks their own.
+    setPicked(new Set(r.courses.length <= 14 && findConflicts(r.slots).length === 0 ? r.courses.map((c) => c.key) : []));
   });
   const chosen = res?.courses.filter((c) => picked.has(c.key)) ?? [];
   const clashes = useMemo(() => findConflicts(chosen.flatMap((c) => c.slots.map((s) => ({ ...s, name: names[c.key] ?? c.name })))), [chosen, names]);
@@ -187,7 +188,8 @@ function TimetableImport({ onClose, onDone }: { onClose: () => void; onDone: () 
       ) : (
         <>
           <div className="row between wrap gap3"><span className="small dim"><b>{res.file}</b> · {res.format === "none" ? "layout not recognised" : `${res.format} layout`} · {plural(res.courses.length, "course")} · {plural(res.slots.length, "class")} found</span>
-            {res.courses.length > 8 && <input className="input" style={{ width: 240, height: 30 }} value={text} onChange={(e) => setText(e.target.value)} placeholder="Find your courses or section…" />}</div>
+            {res.courses.length > 6 && <input className="input" style={{ width: 240, height: 30 }} value={text} onChange={(e) => setText(e.target.value)} placeholder="Find your courses or section…" />}</div>
+          {picked.size === 0 && res.courses.length > 0 && <div className="small dim row"><Icon name="info" size={13} />This sheet holds more than one person's classes. Tick the courses (and section) that are yours.</div>}
           {res.warnings.map((w) => <div key={w} className="small warn row"><Icon name="warn" size={13} />{w}</div>)}
           {clashes.length > 0 && <div className="small bad row"><Icon name="warn" size={13} />{plural(clashes.length, "clash")} among the selected courses — e.g. {(clashes[0].a as any).name} and {(clashes[0].b as any).name} on {DAYS[clashes[0].day]} at {hm(clashes[0].start)}.</div>}
           <div className="scroll" style={{ maxHeight: 400, margin: "0 -8px" }}>

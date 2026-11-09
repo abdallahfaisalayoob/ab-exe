@@ -188,7 +188,7 @@ function About({ p, back }: { p: any; back: () => void }) {
       </div>
       <Field label="Colour"><Swatches value={f.color} onChange={(color) => save({ color })} /></Field>
       <div className="col gap1"><div className="row between"><span className="label">Academic deadlines for this project</span><button className="btn sm" onClick={() => useUI.getState().set({ quick: { type: "deadline", init: { project_id: p.id, course_id: p.course_id ?? "", kind: "milestone" } } })}><Icon name="plus" size={12} />Add</button></div>{deadlines.length ? deadlines.map((d) => <div key={d.id} className="row between small" style={{ opacity: d.done ? 0.5 : 1 }}><span>{d.title} <span className="faint">· {d.kind}</span></span><span className="faint">{fmtDate(d.due_at)} · {relDay(d.due_at)}</span></div>) : <span className="small faint">None. {plural(0, "deadline")} linked.</span>}</div>
-      <hr className="hr" /><div className="row"><Confirm className="btn ghost danger" label="Delete project" onConfirm={() => attempt(async () => { await run("DELETE FROM projects WHERE id = ?", [p.id]); back(); })} /><span className="small faint">Removes its tasks, milestones and notes. Linked files are untouched.</span></div>
+      <hr className="hr" /><div className="row"><Confirm className="btn ghost danger" label="Delete project" onConfirm={() => attempt(async () => { await run("DELETE FROM notes WHERE owner_type = 'project' AND owner_id = ?", [p.id]); await run("DELETE FROM projects WHERE id = ?", [p.id]); back(); })} /><span className="small faint">Removes its tasks, milestones and notes. Linked files are untouched.</span></div>
     </div>
   );
 }

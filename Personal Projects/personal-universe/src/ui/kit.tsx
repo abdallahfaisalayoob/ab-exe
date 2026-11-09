@@ -88,7 +88,7 @@ export function Menu({ button, children, align = "right" }: { button: ReactNode;
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
       <span onClick={() => setOpen(!open)} style={{ display: "inline-flex" }}>{button}</span>
-      {open && <div className="plate glass" style={{ position: "absolute", top: "calc(100% + 6px)", [align]: 0, zIndex: 50, padding: 6, minWidth: 200, borderRadius: 14, boxShadow: "var(--shadow)", animation: "rise var(--fast) var(--ease) both" }}>{children(() => setOpen(false))}</div>}
+      {open && <div className="plate" style={{ background: "var(--panel)", position: "absolute", top: "calc(100% + 6px)", [align]: 0, zIndex: 50, padding: 6, minWidth: 200, borderRadius: 14, boxShadow: "var(--shadow)", animation: "rise var(--fast) var(--ease) both" }}>{children(() => setOpen(false))}</div>}
     </div>
   );
 }

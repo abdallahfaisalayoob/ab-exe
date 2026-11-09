@@ -10,6 +10,16 @@ import { useDebounced, useQ, setting } from "../lib/hooks";
 import { attempt, toast, useUI, WORLDS } from "../lib/store";
 import { Icon, KIND_ICON } from "../ui/Icons";
 
+/** A course matches a title when its code or initials appear, or when all (at least two) of its name words do. */
+export function courseMatch(title: string, c: { name: string; code: string }) {
+  const words = title.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const name = c.name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && w !== "and");
+  if (c.code && words.includes(c.code.toLowerCase().replace(/\W/g, ""))) return 3;
+  if (name.length > 1 && words.includes(name.map((w) => w[0]).join(""))) return 3;
+  const hits = name.filter((w) => words.includes(w)).length;
+  return name.length > 0 && hits === name.length ? 2 : hits >= 2 ? 1 : 0;
+}
+
 interface Item { key: string; group: string; title: string; sub?: string; icon: string; color?: string; hint?: string; run: () => void | Promise<unknown> }
 
 export function Palette() {
@@ -93,7 +103,7 @@ export function Palette() {
         key: "dl", group: "Command", icon: "flag", color: "var(--hue-academy)", title: `Add ${i.kind}: “${i.title}”`, sub: i.due ? `Due ${fmtDate(i.due, "long")} at ${i.due.slice(11)} · press Enter to save` : "No date recognised — Enter opens the form",
         run: async () => {
           if (!i.due) return set({ palette: false, quick: { type: "deadline", init: { title: i.title, kind: i.kind } } });
-          const course = (ents?.courses ?? []).map((c) => ({ c, s: Math.max(...i.title.split(/\s+/).filter((w) => w.length > 1).map((w) => Math.max(fuzzy(w, c.name) > 100 ? 2 : 0, c.code && fuzzy(w, c.code) > 100 ? 2 : 0, c.name.split(/\s+/).map((x) => x[0]).join("").toLowerCase() === w.toLowerCase() ? 3 : 0)), 0) })).sort((a, b) => b.s - a.s)[0];
+          const course = (ents?.courses ?? []).map((c) => ({ c, s: courseMatch(i.title, c) })).sort((a, b) => b.s - a.s)[0];
           const r = await run("INSERT INTO deadlines(title, kind, course_id, due_at, created_at) VALUES(?,?,?,?,?)", [i.title, i.kind, course?.s ? course.c.id : null, i.due, Date.now()]);
           void log("academy", "deadline", `Added ${i.kind}: ${i.title}`, { type: "deadline", id: r.lastId });
           close();

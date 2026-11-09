@@ -34,8 +34,11 @@ ab.exe/
     │   ├── backend/           — Python FastAPI: vision processing, simulation engine, AI diagnostics
     │   └── frontend/          — React + Three.js + Tailwind: 3D CNC visualisation, HLS video
     ├── Node Web Project/      — Lightweight Node.js + Express web server with frontend
-    └── Full Stack App/
-        └── python_app/        — Laser engraving UI (Python)
+    ├── Full Stack App/
+    │   └── python_app/        — Laser engraving UI (Python)
+    └── personal-universe/     — Personal Universe: local-first Windows desktop environment
+                                 (Tauri 2 + Rust + React/TypeScript + SQLite) for files,
+                                 university, finance and projects — see its README
 ```
 
 ---

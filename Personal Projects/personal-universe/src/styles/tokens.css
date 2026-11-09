@@ -63,6 +63,7 @@
   --plate-2: rgba(255, 255, 255, .06);
   --plate-3: rgba(255, 255, 255, .1);
   --glass: rgba(14, 17, 26, .72);
+  --panel: rgba(13, 16, 25, .965);
   --scrim: rgba(3, 4, 8, .62);
   --shadow: 0 24px 60px -20px rgba(0, 0, 0, .7), 0 2px 0 0 rgba(255, 255, 255, .04) inset;
   --atmo-a: .20; --atmo-b: .10;
@@ -84,6 +85,7 @@
   --plate-2: rgba(255, 255, 255, .065);
   --plate-3: rgba(255, 255, 255, .11);
   --glass: rgba(24, 25, 28, .78);
+  --panel: rgba(26, 27, 30, .97);
   --scrim: rgba(8, 8, 9, .6);
   --shadow: 0 24px 60px -20px rgba(0, 0, 0, .6), 0 2px 0 0 rgba(255, 255, 255, .04) inset;
   --atmo-a: .09; --atmo-b: .04;
@@ -105,6 +107,7 @@
   --plate-2: rgba(255, 255, 255, .78);
   --plate-3: rgba(20, 22, 30, .08);
   --glass: rgba(250, 248, 243, .82);
+  --panel: rgba(250, 248, 243, .98);
   --scrim: rgba(60, 58, 52, .32);
   --shadow: 0 24px 50px -24px rgba(40, 36, 28, .35), 0 1px 0 0 rgba(255, 255, 255, .8) inset;
   --atmo-a: .30; --atmo-b: .16;

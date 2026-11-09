@@ -1,0 +1,33 @@
+name: Personal Universe — Windows installer
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Personal Projects/personal-universe/**"
+      - ".github/workflows/personal-universe.yml"
+
+defaults:
+  run:
+    working-directory: Personal Projects/personal-universe
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "Personal Projects/personal-universe"
+      - run: npm ci
+      - run: npm test
+      - run: cargo test -p pu-core
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: personal-universe-windows-installer
+          path: Personal Projects/personal-universe/target/release/bundle/nsis/*.exe
