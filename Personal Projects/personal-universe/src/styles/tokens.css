@@ -1,0 +1,129 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   PERSONAL UNIVERSE — design tokens
+   Direction: "Observatory". A quiet, deep field with warm paper-white type.
+   Colour is information: each world owns one hue, and that hue only ever appears
+   as light (glow, stroke, small fills) — never as large saturated slabs.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Type */
+  --font-ui: "Geist Variable", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --font-mono: "Geist Mono Variable", "Cascadia Code", Consolas, monospace;
+
+  --t-micro: 10.5px;
+  --t-small: 12px;
+  --t-body: 13.5px;
+  --t-lead: 15px;
+  --t-title: 19px;
+  --t-display: 34px;
+  --t-hero: 64px;
+
+  /* Space — a 4px rhythm */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
+
+  /* Shape */
+  --r-s: 7px; --r-m: 12px; --r-l: 18px; --r-pill: 999px;
+
+  /* Motion */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --fast: 140ms; --med: 260ms; --slow: 520ms;
+
+  /* World hues (kept at similar perceived lightness so none shouts) */
+  --hue-home: #E9CB8E;
+  --hue-knowledge: #74D2D4;
+  --hue-academy: #A3A4FF;
+  --hue-finance: #7EDBA6;
+  --hue-projects: #F4A074;
+  --hue-archive: #D3B0EA;
+  --hue-tools: #86B8F4;
+
+  /* Semantic */
+  --good: #7EDBA6;
+  --warn: #F1C063;
+  --bad: #F2857D;
+
+  --hue: var(--hue-home);
+  --topbar-h: 46px;
+  --dock-h: 84px;
+}
+
+/* Midnight (default) */
+:root, :root[data-theme="midnight"] {
+  color-scheme: dark;
+  --bg: #06080D;
+  --bg-2: #0B0E16;
+  --ink: #EDEAE2;
+  --ink-2: #B4B6BF;
+  --ink-3: #7B7F8E;
+  --ink-4: #4C5060;
+  --line: rgba(255, 255, 255, .075);
+  --line-2: rgba(255, 255, 255, .14);
+  --plate: rgba(255, 255, 255, .032);
+  --plate-2: rgba(255, 255, 255, .06);
+  --plate-3: rgba(255, 255, 255, .1);
+  --glass: rgba(14, 17, 26, .72);
+  --scrim: rgba(3, 4, 8, .62);
+  --shadow: 0 24px 60px -20px rgba(0, 0, 0, .7), 0 2px 0 0 rgba(255, 255, 255, .04) inset;
+  --atmo-a: .20; --atmo-b: .10;
+  --star: .42;
+}
+
+/* Graphite — neutral, lower contrast atmosphere for long sessions */
+:root[data-theme="graphite"] {
+  color-scheme: dark;
+  --bg: #101113;
+  --bg-2: #151618;
+  --ink: #EAE8E4;
+  --ink-2: #B2B2B4;
+  --ink-3: #7D7E82;
+  --ink-4: #505155;
+  --line: rgba(255, 255, 255, .08);
+  --line-2: rgba(255, 255, 255, .15);
+  --plate: rgba(255, 255, 255, .035);
+  --plate-2: rgba(255, 255, 255, .065);
+  --plate-3: rgba(255, 255, 255, .11);
+  --glass: rgba(24, 25, 28, .78);
+  --scrim: rgba(8, 8, 9, .6);
+  --shadow: 0 24px 60px -20px rgba(0, 0, 0, .6), 0 2px 0 0 rgba(255, 255, 255, .04) inset;
+  --atmo-a: .09; --atmo-b: .04;
+  --star: .35;
+}
+
+/* Daylight — paper */
+:root[data-theme="daylight"] {
+  color-scheme: light;
+  --bg: #F3F0E9;
+  --bg-2: #ECE8DF;
+  --ink: #1B1C22;
+  --ink-2: #4A4C57;
+  --ink-3: #7A7C87;
+  --ink-4: #A9AAB2;
+  --line: rgba(20, 22, 30, .09);
+  --line-2: rgba(20, 22, 30, .18);
+  --plate: rgba(255, 255, 255, .5);
+  --plate-2: rgba(255, 255, 255, .78);
+  --plate-3: rgba(20, 22, 30, .08);
+  --glass: rgba(250, 248, 243, .82);
+  --scrim: rgba(60, 58, 52, .32);
+  --shadow: 0 24px 50px -24px rgba(40, 36, 28, .35), 0 1px 0 0 rgba(255, 255, 255, .8) inset;
+  --atmo-a: .30; --atmo-b: .16;
+  --star: 0;
+  /* Hues deepen on paper so they stay legible as text and strokes */
+  --hue-home: #A8782A;
+  --hue-knowledge: #17828A;
+  --hue-academy: #5557C9;
+  --hue-finance: #1F8A55;
+  --hue-projects: #C2602C;
+  --hue-archive: #8552AE;
+  --hue-tools: #2F6FB8;
+  --good: #1F8A55; --warn: #A87412; --bad: #C2473F;
+}
+
+[data-world="home"] { --hue: var(--hue-home); }
+[data-world="knowledge"] { --hue: var(--hue-knowledge); }
+[data-world="academy"] { --hue: var(--hue-academy); }
+[data-world="finance"] { --hue: var(--hue-finance); }
+[data-world="projects"] { --hue: var(--hue-projects); }
+[data-world="archive"] { --hue: var(--hue-archive); }
+[data-world="tools"] { --hue: var(--hue-tools); }

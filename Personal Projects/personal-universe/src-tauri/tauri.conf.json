@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Personal Universe",
+  "version": "0.1.0",
+  "identifier": "com.personaluniverse.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev:ui",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build:ui",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Personal Universe",
+        "width": 1480,
+        "height": 920,
+        "minWidth": 1100,
+        "minHeight": 700,
+        "center": true,
+        "decorations": false,
+        "backgroundColor": "#07090F"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: blob: pu: http://pu.localhost; media-src 'self' blob: pu: http://pu.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost pu: http://pu.localhost; worker-src 'self' blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "category": "Productivity",
+    "shortDescription": "A local-first operating environment for your digital life",
+    "longDescription": "Personal Universe brings files, university, money, projects and time into one private, offline desktop environment.",
+    "windows": {
+      "nsis": { "installMode": "currentUser" }
+    }
+  }
+}
