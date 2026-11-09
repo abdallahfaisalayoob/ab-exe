@@ -1,0 +1,177 @@
+// O.R.I.O.N. — Offline, Rather Intelligent, Organisational Navigator.
+// The launch briefing. `compose` is a pure function over facts gathered from the local
+// database, so every sentence ORION says can be traced to a row you entered. The only
+// optional online ingredient is the weather, which is off until you switch it on.
+import { q } from "./backend";
+import { setting, useSettings } from "./hooks";
+import { DAYS, MONTHS, daysUntil, dow, hm, relDay } from "./dates";
+import { byCategory, convert, type Account, type Tx } from "./finance";
+import { money, plural } from "./format";
+import { monthKey } from "./dates";
+import type { World } from "./store";
+
+export interface Weather { place: string; temp: number; code: number; high: number; low: number; rain: number; fetchedAt: number }
+export interface Facts {
+  address: string;
+  classes: { name: string; start_min: number; end_min: number; room: string }[];
+  deadlines: { id: number; title: string; kind: string; due_at: string }[];
+  doing: { title: string; project: string }[];
+  milestones: { title: string; project: string; date: string }[];
+  recurring: { title: string; next_date: string; amount: number; currency: string }[];
+  inbox: number; captures: number; files: number;
+  spent: number; overBudget: string[]; currency: string; hasMoney: boolean;
+  lastBackup: number | null;
+  weather: Weather | null;
+}
+export interface Line { icon: string; text: string; world?: World; tab?: string; tone?: "warn" | "good" }
+export interface Mission { title: string; why: string; world: World; tab?: string }
+export interface Briefing { greeting: string; dateLine: string; lines: Line[]; status: string[]; mission: Mission | null; signoff: string; speech: string }
+
+const WMO: [number[], string][] = [[[0], "clear skies"], [[1, 2], "partly cloudy"], [[3], "overcast"], [[45, 48], "fog"], [[51, 53, 55, 56, 57], "drizzle"], [[61, 63, 65, 66, 67, 80, 81, 82], "rain"], [[71, 73, 75, 77, 85, 86], "snow"], [[95, 96, 99], "thunderstorms"]];
+export const sky = (code: number) => WMO.find(([c]) => c.includes(code))?.[1] ?? "mixed skies";
+
+const SIGNOFFS = ["All systems nominal.", "Shall we begin?", "I'll be in the top bar if you need me.", "The universe is in order. Mostly.", "Ready when you are.", "Standing by."];
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+
+export function compose(f: Facts, now: Date, seed = now.getDate() + now.getHours()): Briefing {
+  const h = now.getHours(), nowMin = h * 60 + now.getMinutes(), sir = f.address ? `, ${f.address}` : "";
+  const greeting = h < 5 ? `Burning the midnight oil${sir}?` : h < 12 ? `Good morning${sir}.` : h < 17 ? `Good afternoon${sir}.` : h < 22 ? `Good evening${sir}.` : `Welcome back${sir}. It is rather late.`;
+  const dateLine = `${DAYS[dow(now)]}, ${now.getDate()} ${MONTHS[now.getMonth()]} · ${hm(nowMin)}`;
+  const lines: Line[] = [];
+  const say: string[] = [greeting];
+
+  if (f.weather) {
+    const w = f.weather, advice = w.rain >= 50 ? " An umbrella would be prudent." : w.high >= 36 ? " Hydration is advised." : w.low <= 4 ? " A jacket is advised." : "";
+    const t = `${w.place}: ${Math.round(w.temp)}° with ${sky(w.code)}. High ${Math.round(w.high)}°, low ${Math.round(w.low)}°, ${Math.round(w.rain)}% chance of rain.${advice}`;
+    lines.push({ icon: "home", text: t });
+    say.push(`It is ${Math.round(w.temp)} degrees in ${w.place} with ${sky(w.code)}.${advice}`);
+  }
+
+  // Classes
+  const left = f.classes.filter((c) => c.end_min > nowMin), current = f.classes.find((c) => c.start_min <= nowMin && c.end_min > nowMin), next = f.classes.find((c) => c.start_min > nowMin);
+  if (f.classes.length === 0) lines.push({ icon: "calendar", text: "No classes on the timetable today.", world: "academy", tab: "week" });
+  else if (!left.length) { lines.push({ icon: "calendar", text: `All ${plural(f.classes.length, "class", "classes")} are done for today.`, world: "academy", tab: "week", tone: "good" }); }
+  else {
+    const where = (c: typeof f.classes[0]) => (c.room ? ` in ${c.room}` : "");
+    const t = current ? `You are in ${current.name} until ${hm(current.end_min)}${next ? `, then ${next.name} at ${hm(next.start_min)}${where(next)}` : ""}.`
+      : `${plural(left.length, "class", "classes")} ${left.length === f.classes.length ? "today" : "still to go"}. ${left.length === f.classes.length ? "First" : "Next"}: ${next!.name} at ${hm(next!.start_min)}${where(next!)}${next!.start_min - nowMin <= 60 ? ` — that is in ${next!.start_min - nowMin} minutes` : ""}.`;
+    lines.push({ icon: "calendar", text: t, world: "academy", tab: "week", tone: next && next.start_min - nowMin <= 20 ? "warn" : undefined });
+    say.push(t);
+  }
+
+  // Deadlines
+  const open = f.deadlines.map((d) => ({ ...d, n: daysUntil(d.due_at, now) })).sort((a, b) => a.due_at.localeCompare(b.due_at));
+  const overdue = open.filter((d) => d.n < 0 && d.kind !== "event"), dueToday = open.filter((d) => d.n === 0), tomorrow = open.filter((d) => d.n === 1);
+  if (overdue.length) { const t = `${plural(overdue.length, "item")} past due: ${overdue.slice(0, 2).map((d) => d.title).join(", ")}${overdue.length > 2 ? " and more" : ""}.`; lines.push({ icon: "warn", text: t, world: "academy", tab: "deadlines", tone: "warn" }); say.push(t); }
+  if (dueToday.length) { const t = `Due today: ${dueToday.map((d) => `${d.title} at ${d.due_at.slice(11)}`).join("; ")}.`; lines.push({ icon: "flag", text: t, world: "academy", tab: "deadlines", tone: "warn" }); say.push(t); }
+  if (tomorrow.length) { const t = `Due tomorrow: ${tomorrow.map((d) => d.title).join(", ")}.`; lines.push({ icon: "flag", text: t, world: "academy", tab: "deadlines" }); say.push(t); }
+  const exam = open.find((d) => d.kind === "exam" && d.n >= 2 && d.n <= 14);
+  if (exam) { const t = `${exam.title} exam ${relDay(exam.due_at, now)}.`; lines.push({ icon: "academy", text: t, world: "academy", tab: "planner" }); if (exam.n <= 7) say.push(t); }
+  if (!overdue.length && !dueToday.length && !tomorrow.length) lines.push({ icon: "check", text: open.length ? `Nothing due today or tomorrow. Next: ${open[0].title}, ${relDay(open[0].due_at, now)}.` : "No deadlines on record.", world: "academy", tab: "deadlines", tone: "good" });
+
+  // Projects
+  const ms = f.milestones.filter((m) => daysUntil(m.date, now) <= 3).sort((a, b) => a.date.localeCompare(b.date))[0];
+  if (ms) lines.push({ icon: "projects", text: `${ms.project}: milestone “${ms.title}” ${relDay(ms.date, now)}.`, world: "projects", tone: daysUntil(ms.date, now) <= 0 ? "warn" : undefined });
+  if (f.doing.length) lines.push({ icon: "projects", text: `${plural(f.doing.length, "task")} in progress — ${f.doing.slice(0, 2).map((t) => t.title).join(", ")}${f.doing.length > 2 ? "…" : ""}.`, world: "projects" });
+
+  // Money
+  if (f.hasMoney) {
+    const rec = f.recurring.filter((r) => daysUntil(r.next_date, now) <= 3);
+    lines.push({ icon: "wallet", text: `${money(f.spent, f.currency)} spent so far in ${MONTHS[now.getMonth()]}.${f.overBudget.length ? ` Over budget on ${f.overBudget.join(", ")}.` : ""}${rec.length ? ` ${rec.map((r) => `${r.title} is due ${relDay(r.next_date, now)}`).join("; ")}.` : ""}`, world: "finance", tone: f.overBudget.length ? "warn" : undefined });
+    if (f.overBudget.length) say.push(`You are over budget on ${f.overBudget.join(" and ")}.`);
+  }
+  if (f.inbox + f.captures > 0) lines.push({ icon: "inbox", text: `${[f.inbox && plural(f.inbox, "file") + " in the inbox", f.captures && plural(f.captures, "captured note")].filter(Boolean).join(" and ")} waiting to be sorted.`, world: f.inbox ? "knowledge" : "tools", tab: f.inbox ? "inbox" : "capture" });
+
+  // The single most useful thing to do next — a fixed priority order, nothing clever.
+  let mission: Mission | null = null;
+  if (overdue[0]) mission = { title: overdue[0].title, why: `It was due ${relDay(overdue[0].due_at, now)} and is still open.`, world: "academy", tab: "deadlines" };
+  else if (dueToday[0]) mission = { title: dueToday[0].title, why: `It is due today at ${dueToday[0].due_at.slice(11)}.`, world: "academy", tab: "deadlines" };
+  else if (tomorrow[0]) mission = { title: tomorrow[0].title, why: "It is due tomorrow.", world: "academy", tab: "deadlines" };
+  else if (exam && exam.n <= 7) mission = { title: `Revise for ${exam.title}`, why: `The exam is ${relDay(exam.due_at, now)}.`, world: "academy", tab: "planner" };
+  else if (ms) mission = { title: ms.title, why: `Milestone for ${ms.project}, ${relDay(ms.date, now)}.`, world: "projects" };
+  else if (f.doing[0]) mission = { title: f.doing[0].title, why: `Already in progress in ${f.doing[0].project}.`, world: "projects" };
+  else if (open[0]) mission = { title: open[0].title, why: `Your next deadline, ${relDay(open[0].due_at, now)}.`, world: "academy", tab: "deadlines" };
+  if (mission) say.push(`If you do one thing today${sir}: ${mission.title}.`);
+
+  const backup = f.lastBackup == null ? "no backup yet" : now.getTime() - f.lastBackup < 36 * 3600_000 ? "backup current" : `last backup ${Math.round((now.getTime() - f.lastBackup) / 86400000)} days ago`;
+  const status = [`${f.files.toLocaleString()} files indexed`, "database healthy", backup, f.weather ? "weather via open-meteo.com" : "nothing sent anywhere"];
+  const signoff = SIGNOFFS[seed % SIGNOFFS.length];
+  say.push(signoff);
+  return { greeting, dateLine, lines, status, mission, signoff, speech: say.join(" ") };
+}
+
+export async function gather(now = new Date(), weather: Weather | null = null): Promise<Facts> {
+  const base = setting("currency", "PKR"), rate = setting("usdRate", 0), month = monthKey(now);
+  const [classes, deadlines, doing, milestones, recurring, counts, accounts, txs, budgets, backups] = await Promise.all([
+    q<any>("SELECT c.name, s.start_min, s.end_min, s.room FROM class_slots s JOIN courses c ON c.id = s.course_id WHERE s.day = ? AND c.archived = 0 ORDER BY s.start_min", [dow(now)]),
+    q<any>("SELECT id, title, kind, due_at FROM deadlines WHERE done = 0 AND kind != 'event' ORDER BY due_at LIMIT 60"),
+    q<any>("SELECT t.title, p.name project FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.status = 'doing' AND p.status = 'active' ORDER BY t.priority DESC LIMIT 8"),
+    q<any>("SELECT m.title, m.date, p.name project FROM milestones m JOIN projects p ON p.id = m.project_id WHERE m.done = 0 AND p.status = 'active'"),
+    q<any>("SELECT title, next_date, amount, currency FROM recurring WHERE active = 1"),
+    q<any>("SELECT (SELECT COUNT(*) FROM files) files, (SELECT COUNT(*) FROM files WHERE inbox_state = 'new') inbox, (SELECT COUNT(*) FROM notes WHERE owner_type = 'capture' AND state = 'open') captures"),
+    q<Account>("SELECT * FROM accounts"), q<Tx>("SELECT * FROM transactions WHERE date >= ?", [month + "-01"]),
+    q<any>("SELECT * FROM budgets"),
+    import("./backend").then((b) => b.call<any[]>("backup.list")).catch(() => []),
+  ]);
+  const cats = byCategory(accounts, txs, base, rate, month);
+  return {
+    address: setting("orion.address", "sir"), classes, deadlines, doing, milestones, recurring,
+    inbox: counts[0].inbox, captures: counts[0].captures, files: counts[0].files,
+    spent: cats.reduce((s, c) => s + c.total, 0), currency: base, hasMoney: accounts.length > 0,
+    overBudget: budgets.filter((b: any) => (cats.find((c) => c.category === b.category)?.total ?? 0) > convert(b.monthly_limit, b.currency, base, rate)).map((b: any) => b.category),
+    lastBackup: backups[0]?.modified ?? null, weather,
+  };
+}
+
+// ── Weather (optional, online, off by default) ───────────────────────────────
+export interface Place { name: string; lat: number; lon: number }
+/** Looks a city up once. Sends only the text you typed to open-meteo.com. */
+export async function findPlace(name: string): Promise<Place | null> {
+  const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?count=1&name=${encodeURIComponent(name)}`, { signal: AbortSignal.timeout(6000) });
+  const j = await r.json();
+  const p = j.results?.[0];
+  return p ? { name: p.name, lat: Math.round(p.latitude * 100) / 100, lon: Math.round(p.longitude * 100) / 100 } : null;
+}
+/** Fetches the forecast for the saved coordinates. Cached for an hour; silent when offline. */
+export async function getWeather(): Promise<Weather | null> {
+  const place = setting<Place | null>("orion.place", null);
+  if (!setting("orion.weather", false) || !place) return null;
+  const cached = setting<Weather | null>("orion.weatherCache", null);
+  if (cached && cached.place === place.name && Date.now() - cached.fetchedAt < 3600_000) return cached;
+  try {
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=1&timezone=auto`, { signal: AbortSignal.timeout(3500) });
+    const j = await r.json();
+    const w: Weather = { place: place.name, temp: j.current.temperature_2m, code: j.current.weather_code, high: j.daily.temperature_2m_max[0], low: j.daily.temperature_2m_min[0], rain: j.daily.precipitation_probability_max[0] ?? 0, fetchedAt: Date.now() };
+    void useSettings.getState().put("orion.weatherCache", w);
+    return w;
+  } catch {
+    return cached && cached.place === place.name && Date.now() - cached.fetchedAt < 6 * 3600_000 ? cached : null;
+  }
+}
+
+// ── Voice: only voices installed on this computer are used, so speech stays offline ──
+let voice: SpeechSynthesisVoice | null | undefined;
+function pickVoice() {
+  if (voice !== undefined || !("speechSynthesis" in window)) return voice ?? null;
+  const all = speechSynthesis.getVoices().filter((v) => v.localService && v.lang.startsWith("en"));
+  if (!all.length) return null;
+  voice = all.find((v) => /George|Daniel|Ryan|Arthur/i.test(v.name)) ?? all.find((v) => v.lang === "en-GB") ?? all.find((v) => /David|Mark|Guy/i.test(v.name)) ?? all[0];
+  return voice;
+}
+export const canSpeak = () => "speechSynthesis" in window;
+export function speak(text: string) {
+  if (!canSpeak() || !setting("orion.voice", true)) return;
+  const go = () => { const v = pickVoice(); if (!v) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.replace(/[“”]/g, "")); u.voice = v; u.rate = 1.04; u.pitch = 0.92; speechSynthesis.speak(u); };
+  if (speechSynthesis.getVoices().length) go(); else { speechSynthesis.onvoiceschanged = () => { speechSynthesis.onvoiceschanged = null; go(); }; }
+}
+export const hush = () => { if (canSpeak()) speechSynthesis.cancel(); };
+
+export const JOKES = [
+  "Why do electrical engineers make poor gardeners? They keep grounding everything.",
+  "A capacitor and a resistor walk into a bar. The capacitor says: I can't stay long, I'm on a time constant.",
+  "There are 10 kinds of people: those who read binary, and those who don't.",
+  "I would tell you a UDP joke, sir, but you might not get it.",
+  "The Fourier transform walked into a bar and asked for a pint. The bartender said: we don't serve your kind. It left, feeling a little out of phase.",
+  "Your code compiled on the first try. I have scheduled a full diagnostic of reality.",
+  "An op-amp's favourite genre is feedback. Preferably negative.",
+];

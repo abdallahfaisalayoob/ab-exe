@@ -9,6 +9,8 @@ import { ftsQuery, fuzzy, money } from "../lib/format";
 import { useDebounced, useQ, setting } from "../lib/hooks";
 import { attempt, toast, useUI, WORLDS } from "../lib/store";
 import { Icon, KIND_ICON } from "../ui/Icons";
+import { JOKES, speak } from "../lib/orion";
+import { startFocus } from "./Orion";
 
 /** A course matches a title when its code or initials appear, or when all (at least two) of its name words do. */
 export function courseMatch(title: string, c: { name: string; code: string }) {
@@ -43,6 +45,8 @@ export function Palette() {
   }, []).data;
 
   const actions: Item[] = useMemo(() => [
+    { key: "a-orion", group: "Actions", title: "ORION, brief me", sub: "Today's classes, deadlines, money and your one mission", icon: "orbit", color: "var(--hue-home)", run: () => set({ palette: false, orion: true }) },
+    { key: "a-focus", group: "Actions", title: "Start a 25-minute focus block", sub: "ORION keeps time and tells you when it is done", icon: "clock", run: () => { close(); startFocus("Focus block", 25); } },
     { key: "a-deadline", group: "Actions", title: "New deadline", sub: "Assignment, quiz, exam, reminder…", icon: "flag", hint: "Ctrl D", run: () => set({ palette: false, quick: { type: "deadline" } }) },
     { key: "a-tx", group: "Actions", title: "New transaction", sub: "Record income, an expense or a transfer", icon: "wallet", hint: "Ctrl E", run: () => set({ palette: false, quick: { type: "tx" } }) },
     { key: "a-project", group: "Actions", title: "New project", icon: "projects", run: () => set({ palette: false, quick: { type: "project" } }) },
@@ -65,7 +69,16 @@ export function Palette() {
       const t = query.trim();
       if (!t) { setFound([]); return; }
       const items: Item[] = [];
-      const interp = interpret(t);
+      // A few words with ORION.
+      const o = t.toLowerCase().match(/^(?:hey |ok )?orion[,:]?\s*(.*)$/);
+      if (o) {
+        const ask = o[1], fm = ask.match(/focus(?: for)? (\d+)/);
+        if (/joke|funny|laugh/.test(ask)) items.push({ key: "o-j", group: "ORION", title: "Tell me a joke", icon: "spark", color: "var(--hue-home)", run: () => { const j = JOKES[Math.floor(Math.random() * JOKES.length)]; close(); toast(j); speak(j); } });
+        else if (/who are you|your name|what are you/.test(ask)) items.push({ key: "o-w", group: "ORION", title: "Who are you?", icon: "orbit", color: "var(--hue-home)", run: () => { const a = "ORION: Offline, Rather Intelligent, Organisational Navigator. I read your timetable, deadlines and ledger on this computer, and I never phone home."; close(); toast(a); speak(a); } });
+        else if (/focus/.test(ask)) items.push({ key: "o-f", group: "ORION", title: `Start a ${fm ? fm[1] : 25}-minute focus block`, icon: "clock", color: "var(--hue-home)", run: () => { close(); startFocus("Focus block", fm ? +fm[1] : 25); } });
+        else items.push({ key: "o-b", group: "ORION", title: "Brief me", sub: "Try also: “orion joke”, “orion focus 45”, “orion who are you”", icon: "orbit", color: "var(--hue-home)", run: () => set({ palette: false, orion: true }) });
+      }
+      const interp = o ? [] : interpret(t);
       for (const it of interp) { const item = toItem(it); if (item) items.push(item); }
 
       const openI = interp.find((i) => i.type === "open") as Extract<Interp, { type: "open" }> | undefined;

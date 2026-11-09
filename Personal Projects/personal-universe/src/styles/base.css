@@ -237,3 +237,9 @@ mark { background: color-mix(in srgb, var(--hue) 28%, transparent); color: inher
 .stagger > *:nth-child(2) { animation-delay: 40ms; } .stagger > *:nth-child(3) { animation-delay: 80ms; }
 .stagger > *:nth-child(4) { animation-delay: 120ms; } .stagger > *:nth-child(5) { animation-delay: 160ms; }
 .stagger > *:nth-child(6) { animation-delay: 200ms; } .stagger > *:nth-child(n+7) { animation-delay: 240ms; }
+
+/* ORION wake-up */
+.orion { position: fixed; inset: 0; z-index: 250; background: radial-gradient(ellipse at 28% 50%, color-mix(in srgb, var(--hue-home) 13%, var(--bg)) 0%, var(--bg) 62%); display: grid; place-items: center; animation: fade var(--slow) both; --hue: var(--hue-home); }
+.orion-inner { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(40px, 6vw, 96px); align-items: center; padding: 40px 6vw 70px; max-width: 1320px; width: 100%; max-height: 100%; overflow: auto; }
+@keyframes orion-breathe { from { transform: scale(.94); opacity: .82; } to { transform: scale(1.06); opacity: 1; } }
+@keyframes orion-talk { from { transform: scale(.9); } to { transform: scale(1.22); } }

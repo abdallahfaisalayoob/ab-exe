@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: blob: pu: http://pu.localhost; media-src 'self' blob: pu: http://pu.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost pu: http://pu.localhost; worker-src 'self' blob:"
+      "csp": "default-src 'self'; img-src 'self' data: blob: pu: http://pu.localhost; media-src 'self' blob: pu: http://pu.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost pu: http://pu.localhost https://api.open-meteo.com https://geocoding-api.open-meteo.com; worker-src 'self' blob:"
     }
   },
   "bundle": {

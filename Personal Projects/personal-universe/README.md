@@ -25,6 +25,11 @@ No accounts. No cloud. No API keys. No telemetry. Everything lives in one SQLite
 | **Archive** | **Time machine** (scrub your history month by month), the road ahead, weekly/monthly review, backup & recovery, and the **privacy ledger**. |
 | **Tools** | Offline engineering bench (Ohm's law, resistor colour codes, wavelength, dB/dBm, base conversion with two's complement, Boolean truth tables, RC/RL/LC formulas, unit conversion) and the capture inbox. |
 
+**O.R.I.O.N.** (*Offline, Rather Intelligent, Organisational Navigator*) wakes with the app: a short boot
+sequence, then a spoken briefing — classes ahead, what is due, money, and the one thing most worth doing
+today — with a one-click focus timer. Speech uses a voice installed on your PC. Try `orion joke` or
+`orion focus 45` in the command bar. Greeting frequency, voice and how it addresses you are in Settings.
+
 Everywhere: **Ctrl K** command bar (search + structured commands such as `quiz ML friday 3pm`,
 `spent 450 on lunch`, `find all pdfs containing normalisation`), universal drop zone, Signals
 (rule-based insights with their reasoning), three themes, Windows notifications for deadlines.
@@ -81,7 +86,7 @@ npm test
 npm run test:core
 ```
 
-* `npm test` — 33 unit tests: timetable parsing (list, day×time grid, room×time grid with one sheet per
+* `npm test` — 37 unit tests: the ORION briefing, timetable parsing (list, day×time grid, room×time grid with one sheet per
   day, time×day grid), conflict detection, natural-language dates, command grammar, finance maths
   (balances, net worth, transfers, projection, statement import), workload model, engineering helpers.
 * `npm run test:core` — Rust integration tests against a real database: recursive import, DOCX/XLSX/CSV
@@ -127,9 +132,11 @@ Design decisions worth knowing:
 
 ## Privacy
 
-Nothing is transmitted by the application. The only outward path is an AI handoff: the app copies the
+Nothing is transmitted by the application unless you switch it on. There are two outward paths. The
+optional weather line in ORION's briefing (off by default) sends your city's coordinates — nothing
+else — to open-meteo.com. The other is an AI handoff: the app copies the
 chosen files and prompt into a folder, puts the prompt on the clipboard and — after you click — opens
-claude.ai or chatgpt.com in your browser. You paste and attach. Each handoff is recorded in
+claude.ai or chatgpt.com in your browser. You paste and attach. Each handoff, and switching weather on, is recorded in
 Archive → Privacy ledger. The UI never claims a file was uploaded.
 
 ## Known limits (v0.1)

@@ -9,6 +9,7 @@ import { Palette } from "./shell/Palette";
 import { ActivityCenter, Ask, DropZone, Settings, Toasts } from "./shell/Overlays";
 import { Handoff } from "./shell/Handoff";
 import { QuickAdd } from "./shell/QuickAdd";
+import { FocusChip, Orion } from "./shell/Orion";
 import Home from "./worlds/Home";
 
 const Knowledge = lazy(() => import("./worlds/Knowledge"));
@@ -68,6 +69,8 @@ function TopBar() {
             <Icon name="orbit" size={12} className="spin" />{active[0].state === "queued" ? "Queued…" : active[0].state === "scanning" ? "Scanning…" : `Indexing ${done}/${total}`}
           </span>
         )}
+        <FocusChip />
+        <button className="icon-btn" onClick={() => set({ orion: true })} title="ORION briefing" aria-label="ORION briefing"><Icon name="orbit" size={17} /></button>
         <button className={"icon-btn" + (activity ? " on" : "")} onClick={() => set({ activity: !activity })} title="Activity & insights" aria-label="Activity and insights"><Icon name="bell" size={17} /></button>
         <button className="icon-btn" onClick={() => set({ settings: true })} title="Settings (Ctrl ,)" aria-label="Settings"><Icon name="gear" size={17} /></button>
         <button className="icon-btn" onClick={() => native.win("fullscreen")} title="Full screen (F11)" aria-label="Full screen"><Icon name="full" size={16} /></button>
@@ -99,7 +102,7 @@ function Dock() {
 }
 
 export default function App() {
-  const { world, go, set, palette, settings, activity, handoff, quick, ask } = useUI();
+  const { world, go, set, palette, settings, activity, handoff, quick, ask, orion } = useUI();
   const loaded = useSettings((s) => s.loaded);
   const [bootError, setBootError] = useState<string | null>(null);
   const [theme] = useSetting("theme", "midnight");
@@ -113,6 +116,10 @@ export default function App() {
         const v = useSettings.getState().values;
         if (v.resume && v.lastWorld) useUI.setState({ world: v.lastWorld });
         await seedPrompts();
+        // ORION greets you on launch (every launch, once a day, or never — your choice in Settings).
+        const mode = v["orion.mode"] ?? "always", day = new Date().toDateString();
+        if (mode === "always" || (mode === "daily" && v["orion.lastDay"] !== day)) useUI.setState({ orion: true });
+        void useSettings.getState().put("orion.lastDay", day);
         void watchJobs();
         void rescan().catch(() => {});
         void checkReminders();
@@ -165,6 +172,7 @@ export default function App() {
       {handoff && <Handoff />}
       {quick && <QuickAdd />}
       {ask && <Ask />}
+      {orion && <Orion />}
       <DropZone />
       <Toasts />
     </div>

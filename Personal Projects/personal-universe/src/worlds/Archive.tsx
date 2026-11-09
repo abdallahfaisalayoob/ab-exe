@@ -191,7 +191,7 @@ function Privacy() {
   const rows = useRows<any>("SELECT * FROM outbound_log ORDER BY ts DESC LIMIT 200");
   return (
     <div className="col gap4" style={{ maxWidth: 900 }}>
-      <div className="plate pad lit row gap4"><Icon name="shield" size={26} className="hue" style={{ flex: "none" }} /><div className="col gap1"><b>Nothing leaves this computer on its own.</b><span className="small dim">Personal Universe has no telemetry, no account and no cloud. The single path outward is an AI handoff that you start and confirm: the app prepares a folder and opens a website; you paste and attach. Every such moment is listed below, permanently.</span></div></div>
+      <div className="plate pad lit row gap4"><Icon name="shield" size={26} className="hue" style={{ flex: "none" }} /><div className="col gap1"><b>Nothing leaves this computer on its own.</b><span className="small dim">Personal Universe has no telemetry, no account and no cloud. Two things can reach the internet, and only if you switch them on: an AI handoff that you start and confirm (the app prepares a folder and opens a website; you paste and attach), and the optional weather line in ORION’s briefing (city coordinates only). Both are listed below, permanently.</span></div></div>
       {rows.length === 0 ? <Empty icon="shield" title="The ledger is empty">No handoff has been prepared. Nothing has been sent anywhere.</Empty> : <div className="plate" style={{ padding: 6 }}>{rows.map((r) => { let files: string[] = []; try { files = JSON.parse(r.files); } catch { /* keep empty */ } return (
         <div key={r.id} className="list-row" style={{ alignItems: "flex-start" }}>
           <Icon name="send" size={15} style={{ color: "var(--ink-3)", marginTop: 3, flex: "none" }} />

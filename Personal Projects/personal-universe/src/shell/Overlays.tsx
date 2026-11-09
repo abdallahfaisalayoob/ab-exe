@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { call, isTauri, native, q } from "../lib/backend";
+import { call, isTauri, native, q, run } from "../lib/backend";
+import { findPlace, type Place } from "../lib/orion";
 import { importPaths, useJobs } from "../lib/actions";
 import { ago } from "../lib/dates";
 import { bytes } from "../lib/format";
@@ -125,6 +126,18 @@ export function Settings() {
   const [usdRate, setUsdRate] = useSetting("usdRate", 0);
   const [rules, setRules] = useSetting("studyRules", DEFAULT_RULES);
   const r = { ...DEFAULT_RULES, ...rules };
+  const [oMode, setOMode] = useSetting("orion.mode", "always");
+  const [oVoice, setOVoice] = useSetting("orion.voice", true);
+  const [oAddress, setOAddress] = useSetting("orion.address", "sir");
+  const [oWeather, setOWeather] = useSetting("orion.weather", false);
+  const [oPlace, setOPlace] = useSetting<Place | null>("orion.place", null);
+  const [city, setCity] = useState("");
+  const enableWeather = () => attempt(async () => {
+    const p = await findPlace(city.trim() || oPlace?.name || "");
+    if (!p) throw new Error("That place was not found. Try the city name on its own.");
+    setOPlace(p); setOWeather(true); setCity("");
+    await run("INSERT INTO outbound_log(ts, target, summary, files) VALUES(?, 'open-meteo.com', ?, '[]')", [Date.now(), `Weather switched on for ${p.name}. Each briefing now requests a forecast for coordinates ${p.lat}, ${p.lon} from open-meteo.com. No personal data is included.`]);
+  }, "Weather is on.");
   const [auto, setAuto] = useState<boolean | null>(null);
   const info = useQ(() => call<any>("app.info"), []).data;
   const counts = useQ(() => q<any>("SELECT (SELECT COUNT(*) FROM files) files, (SELECT COUNT(*) FROM outbound_log) outbound"), []).data?.[0];
@@ -143,6 +156,13 @@ export function Settings() {
           <Row title="Resume where I left off" sub="Open the last world instead of Home"><Toggle on={resume} onChange={setResume} label="Resume last world" /></Row>
           <Row title="Launch when Windows starts" sub={auto === null ? "Available in the installed desktop app" : undefined}>{auto === null ? <span className="chip">desktop only</span> : <Toggle on={auto} onChange={(v) => attempt(async () => setAuto(await native.autostart(v)))} label="Launch on startup" />}</Row>
           <Row title="Deadline reminders" sub="Windows notifications 24 hours and 1 hour before"><Toggle on={notifications} onChange={(v) => { setNotifications(v); if (v) void native.notify("Reminders are on", "You will be notified before deadlines."); }} label="Reminders" /></Row>
+          <hr className="hr" style={{ margin: "8px 0 12px" }} /><span className="label">O.R.I.O.N. — your launch briefing</span>
+          <Row title="Greet me"><Seg value={oMode} onChange={setOMode} options={[{ value: "always", label: "Every launch" }, { value: "daily", label: "Once a day" }, { value: "off", label: "Never" }]} /></Row>
+          <Row title="Speak the briefing" sub="Uses a voice installed on this computer — no online speech"><Toggle on={oVoice} onChange={setOVoice} label="ORION voice" /></Row>
+          <Row title="Call me"><input className="input" style={{ width: 150 }} value={oAddress} onChange={(e) => setOAddress(e.target.value)} placeholder="sir, boss, your name…" /></Row>
+          <Row title="Weather" sub={oWeather && oPlace ? `On for ${oPlace.name}. The only online request the app makes: coordinates → open-meteo.com.` : "Off. Needs the internet: your city's coordinates are sent to open-meteo.com."}>
+            {oWeather ? <button className="btn sm" onClick={() => setOWeather(false)}>Turn off</button> : <div className="row gap1"><input className="input" style={{ width: 120 }} value={city} onChange={(e) => setCity(e.target.value)} onKeyDown={(e) => e.key === "Enter" && enableWeather()} placeholder={oPlace?.name ?? "City"} /><button className="btn sm" onClick={enableWeather} disabled={!city.trim() && !oPlace}>Turn on</button></div>}
+          </Row>
           <hr className="hr" style={{ margin: "8px 0 12px" }} /><span className="label">Study rules — used by the workload planner</span>
           <div className="grid3" style={{ paddingTop: 8 }}>
             <Field label="Study budget / day (h)"><input className="input" type="number" min="0" max="16" step="0.5" value={r.studyPerDay} onChange={(e) => setRules({ ...r, studyPerDay: +e.target.value || 0 })} /></Field>
@@ -157,7 +177,7 @@ export function Settings() {
             <input className="input num" style={{ width: 110 }} type="number" min="0" step="0.01" value={usdRate || ""} placeholder="e.g. 280" onChange={(e) => setUsdRate(+e.target.value || 0)} />
           </Row>
           <hr className="hr" style={{ margin: "8px 0 12px" }} /><span className="label">Privacy</span>
-          <p className="small dim" style={{ padding: "8px 0" }}>No telemetry, no accounts, no cloud. The only time anything can leave this computer is an AI handoff you start and confirm — and each one is written to the privacy ledger ({counts?.outbound ?? 0} so far).</p>
+          <p className="small dim" style={{ padding: "8px 0" }}>No telemetry, no accounts, no cloud. Only two things can reach the internet, both switched on by you: an AI handoff you start and confirm, and the optional weather line in ORION’s briefing. Both are written to the privacy ledger ({counts?.outbound ?? 0} so far).</p>
           <div className="row"><button className="btn sm" onClick={() => { close(); go("archive", { tab: "privacy" }); }}><Icon name="shield" size={14} />Privacy ledger</button><button className="btn sm" onClick={() => { close(); go("archive", { tab: "backups" }); }}><Icon name="download" size={14} />Backups & export</button></div>
           <hr className="hr" style={{ margin: "14px 0 12px" }} /><span className="label">Data on this computer</span>
           <div className="col gap1 small" style={{ padding: "8px 0" }}>

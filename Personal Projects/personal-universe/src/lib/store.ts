@@ -28,6 +28,8 @@ interface UI {
   settings: boolean;
   handoff: HandoffRequest | null;
   quick: Quick | null;
+  orion: boolean;
+  focus: { title: string; until: number; minutes: number } | null;
   ask: { title: string; value: string; resolve: (v: string | null) => void } | null;
   toasts: Toast[];
   go: (world: World, intent?: Omit<Intent, "world" | "n">) => void;
@@ -49,6 +51,8 @@ export const useUI = create<UI>((set, get) => ({
   handoff: null,
   quick: null,
   ask: null,
+  orion: false,
+  focus: null,
   toasts: [],
   go: (world, intent) => set({ world, intent: intent ? { ...intent, world, n: seq++ } : null, palette: false, activity: false }),
   clearIntent: () => set({ intent: null }),
