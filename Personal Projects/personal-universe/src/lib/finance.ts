@@ -8,7 +8,10 @@ export interface Recurring { id: number; title: string; amount: number; currency
 
 /** `rate` is PKR per 1 USD, set by the user. Other currencies pass through unchanged. */
 export function convert(amount: number, from: string, to: string, rate: number) {
-  if (from === to || !rate) return amount;
+  if (from === to) return amount;
+  // Without a rate from the user, a foreign-currency amount cannot be honestly totalled: it counts as 0
+  // and the interface says so (see `needsRate`).
+  if (!rate) return 0;
   if (from === "USD" && to === "PKR") return amount * rate;
   if (from === "PKR" && to === "USD") return amount / rate;
   return amount;
@@ -151,3 +154,6 @@ export function normDate(s: string): string | null {
   return null;
 }
 export const CATEGORIES = ["Food", "Transport", "Groceries", "Tuition", "Books & supplies", "Rent", "Utilities", "Mobile & internet", "Subscriptions", "Health", "Shopping", "Entertainment", "Family", "Gifts", "Savings", "Salary", "Stipend", "Freelance", "Allowance", "Uncategorised"];
+
+/** True when totals in `base` are incomplete because an account uses another currency and no rate is set. */
+export const needsRate = (accounts: Account[], base: string, rate: number) => !rate && accounts.some((a) => !a.archived && a.currency !== base);

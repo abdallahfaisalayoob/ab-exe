@@ -6,7 +6,7 @@ import { captureClipboard, checkReminders, rescan, useJobs, watchJobs } from "./
 import { seedPrompts } from "./lib/prompts";
 import { Icon } from "./ui/Icons";
 import { Palette } from "./shell/Palette";
-import { ActivityCenter, DropZone, Settings, Toasts } from "./shell/Overlays";
+import { ActivityCenter, Ask, DropZone, Settings, Toasts } from "./shell/Overlays";
 import { Handoff } from "./shell/Handoff";
 import { QuickAdd } from "./shell/QuickAdd";
 import Home from "./worlds/Home";
@@ -99,7 +99,7 @@ function Dock() {
 }
 
 export default function App() {
-  const { world, go, set, palette, settings, activity, handoff, quick } = useUI();
+  const { world, go, set, palette, settings, activity, handoff, quick, ask } = useUI();
   const loaded = useSettings((s) => s.loaded);
   const [bootError, setBootError] = useState<string | null>(null);
   const [theme] = useSetting("theme", "midnight");
@@ -164,6 +164,7 @@ export default function App() {
       {settings && <Settings />}
       {handoff && <Handoff />}
       {quick && <QuickAdd />}
+      {ask && <Ask />}
       <DropZone />
       <Toasts />
     </div>

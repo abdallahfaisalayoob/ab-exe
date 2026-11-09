@@ -28,6 +28,7 @@ interface UI {
   settings: boolean;
   handoff: HandoffRequest | null;
   quick: Quick | null;
+  ask: { title: string; value: string; resolve: (v: string | null) => void } | null;
   toasts: Toast[];
   go: (world: World, intent?: Omit<Intent, "world" | "n">) => void;
   clearIntent: () => void;
@@ -47,6 +48,7 @@ export const useUI = create<UI>((set, get) => ({
   settings: false,
   handoff: null,
   quick: null,
+  ask: null,
   toasts: [],
   go: (world, intent) => set({ world, intent: intent ? { ...intent, world, n: seq++ } : null, palette: false, activity: false }),
   clearIntent: () => set({ intent: null }),
@@ -72,3 +74,6 @@ export async function attempt<T>(fn: () => Promise<T>, okText?: string): Promise
     return undefined;
   }
 }
+
+/** A small in-app text prompt. Resolves with null when cancelled. */
+export const ask = (title: string, value = "") => new Promise<string | null>((resolve) => useUI.setState({ ask: { title, value, resolve } }));

@@ -9,7 +9,7 @@ import { money, plural } from "../lib/format";
 import { useNow, useQ, useRows, useSetting } from "../lib/hooks";
 import { computeInsights } from "../lib/insights";
 import { DEFAULT_RULES } from "../lib/workload";
-import { useUI, World } from "../lib/store";
+import { ask, useUI, World } from "../lib/store";
 import { Icon, KIND_ICON } from "../ui/Icons";
 import { Spark } from "../ui/charts";
 import { Check, Empty, Menu, MenuItem, Ring, useDrag } from "../ui/kit";
@@ -61,7 +61,7 @@ export default function Home() {
         <div className="row between">
           <div className="row gap1 wrap">
             {Object.keys(layouts).map((name) => <button key={name} className={"chip" + (name === active ? " on" : "")} onClick={() => setActive(name)}>{name}</button>)}
-            {arrange && <button className="chip" onClick={() => { const name = window.prompt("Name this workspace")?.trim(); if (name) { setLayouts({ ...layouts, [name]: layout }); setActive(name); } }}><Icon name="plus" size={11} />Save as…</button>}
+            {arrange && <button className="chip" onClick={async () => { const name = (await ask("Name this workspace"))?.trim(); if (name) { setLayouts({ ...layouts, [name]: layout }); setActive(name); } }}><Icon name="plus" size={11} />Save as…</button>}
             {arrange && !(active in PRESETS) && <button className="chip" onClick={() => { const { [active]: _, ...rest } = layouts; setLayouts(rest); setActive("Everyday"); }}><Icon name="trash" size={11} />Remove “{active}”</button>}
             {arrange && active in PRESETS && <button className="chip" onClick={() => save(PRESETS[active])}><Icon name="undo" size={11} />Reset</button>}
           </div>

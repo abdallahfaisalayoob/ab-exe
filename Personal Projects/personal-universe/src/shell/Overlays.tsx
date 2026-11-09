@@ -172,3 +172,14 @@ export function Settings() {
     </Modal>
   );
 }
+
+export function Ask() {
+  const a = useUI((s) => s.ask)!;
+  const [v, setV] = useState(a.value);
+  const done = (r: string | null) => { useUI.setState({ ask: null }); a.resolve(r); };
+  return (
+    <Modal title={a.title} onClose={() => done(null)} foot={<><button className="btn ghost" onClick={() => done(null)}>Cancel</button><button className="btn primary" onClick={() => done(v)}>OK</button></>}>
+      <input className="input" autoFocus value={v} onChange={(e) => setV(e.target.value)} onKeyDown={(e) => e.key === "Enter" && done(v)} onFocus={(e) => e.target.select()} />
+    </Modal>
+  );
+}
