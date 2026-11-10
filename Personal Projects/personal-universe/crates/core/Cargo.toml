@@ -1,6 +1,6 @@
 [package]
 name = "pu-core"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Personal Universe core: local database, indexer, document extraction, backups"
 
@@ -18,9 +18,15 @@ zip = { version = "9", default-features = false, features = ["deflate"] }
 pdf-extract = "0.12"
 csv = "1"
 sha2 = "0.10"
+base64 = "0.22"
+whisper-rs = "=0.13.2"
+lopdf = "0.42"
 ureq = "2"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "bmp"] }
 tiny_http = { version = "0.12", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Foundation", "Foundation_Collections", "Globalization", "Graphics_Imaging", "Media_Ocr", "Storage_Streams"] }
 
 [features]
 dev-server = ["dep:tiny_http"]

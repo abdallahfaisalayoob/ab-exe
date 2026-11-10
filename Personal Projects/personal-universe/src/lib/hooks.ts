@@ -52,6 +52,10 @@ export const setting = <T,>(key: string, fallback: T): T => {
   return v === undefined ? fallback : v;
 };
 
+/** Course focus: when set, every world narrows to this one course. */
+export interface CourseFocus { id: number; name: string; color: string }
+export const useCourseFocus = () => useSetting<CourseFocus | null>("context", null);
+
 /** Consumes a navigation intent addressed to this world, once. */
 export function useIntent(world: World, handle: (i: Intent) => void) {
   const intent = useUI((s) => s.intent);

@@ -36,11 +36,13 @@ Scored 1–5 for usefulness (U), novelty (N), feasibility offline (F) and cost i
 | 11 | **Named Home workspaces** — Study / Money / your own layouts | 4 | 2 | 5 | 5 | **Built** |
 | 12 | **Honest handoff** — prompt + copies in a folder, a checklist that never claims an upload | 5 | 3 | 5 | 5 | **Built** |
 | 13 | Local semantic search (small embedding model, ONNX) | 4 | 3 | 3 | 2 | Next — optional download, off by default |
-| 14 | OCR for scans and screenshots (Windows.Media.Ocr) | 4 | 2 | 3 | 3 | Next |
-| 15 | Focus context — pin a course and the whole app filters to it | 4 | 4 | 4 | 5 | Next |
+| 14 | OCR for scans and screenshots (Windows.Media.Ocr) | 4 | 2 | 3 | 3 | **Built** (v0.3) |
+| 15 | Focus context — pin a course and the whole app filters to it | 4 | 4 | 4 | 5 | **Built** (v0.3) |
 | 16 | File version snapshots (hash history per path, diff for text) | 3 | 3 | 4 | 3 | Later — hash history first, no content copies |
 | 17 | Live file-system watcher instead of periodic rescan | 3 | 1 | 4 | 4 | Later |
 | 18 | Global hotkey capture window (outside the app) | 3 | 2 | 4 | 5 | Later |
+| 21 | **ORION** — spoken launch briefing, one daily mission, focus timer, evening wrap-up | 5 | 4 | 5 | 5 | **Built** (v0.2–0.3) |
+| 22 | **Talk to ORION** — push-to-talk commands recognised locally by Whisper | 4 | 4 | 4 | 3 | **Built** (v0.3) |
 | 19 | 3D "walkable" library | 1 | 4 | 3 | 1 | Rejected — novelty without discovery value (see DESIGN.md) |
 | 20 | Automatic transaction posting for recurring items | 2 | 1 | 5 | 5 | Rejected — a ledger must never fill itself in |
 
@@ -58,8 +60,8 @@ Scored 1–5 for usefulness (U), novelty (N), feasibility offline (F) and cost i
 
 ## Roadmap
 
-1. Optional local semantic search and OCR (both strictly opt-in downloads).
-2. Focus context and per-course dashboards on Home.
+1. Optional local semantic search (a strictly opt-in download).
+2. Per-course dashboards on Home; a conversational layer over the command grammar.
 3. Live watcher; hash history for the time machine ("this file changed 6 times since September").
 4. Encrypted database option (SQLCipher) with a passphrase.
 5. Import/export of prompt collections; ICS export of the timetable.

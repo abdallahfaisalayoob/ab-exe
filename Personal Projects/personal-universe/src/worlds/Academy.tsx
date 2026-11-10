@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { batch, call, log, native, q, run } from "../lib/backend";
 import { DAYS, MONTHS, addDays, daysUntil, dow, fmtDate, hm, parseHm, relDay, today, weekStart, ymd } from "../lib/dates";
 import { PALETTE, plural } from "../lib/format";
-import { useIntent, useNow, useRows } from "../lib/hooks";
+import { useCourseFocus, useIntent, useNow, useRows } from "../lib/hooks";
 import { SUBJECTS } from "../lib/prompts";
 import { attempt, toast, useUI } from "../lib/store";
 import { findConflicts, parseTimetable, ParseResult } from "../lib/timetable";
@@ -28,6 +28,8 @@ export default function Academy() {
     if (i.action === "import") setImporting(true);
     if (i.payload) setFilter(i.payload);
   });
+  const [focus] = useCourseFocus();
+  useEffect(() => { if (focus) setCourseId(focus.id); }, [focus?.id]);
   const open = useRows<any>("SELECT COUNT(*) n FROM deadlines WHERE done = 0")[0]?.n;
   return (
     <>
@@ -58,7 +60,9 @@ function Week({ onImport }: { onImport: () => void }) {
   const now = useNow();
   const [mode, setMode] = useState<"week" | "day">("week");
   const [anchor, setAnchor] = useState(() => new Date());
-  const [only, setOnly] = useState<number | null>(null);
+  const [focus] = useCourseFocus();
+  const [only, setOnly] = useState<number | null>(focus?.id ?? null);
+  useEffect(() => setOnly(focus?.id ?? null), [focus?.id]);
   const [edit, setEdit] = useState<any>(null);
   const slots = useRows<any>("SELECT s.*, c.name, c.code, c.color FROM class_slots s JOIN courses c ON c.id = s.course_id WHERE c.archived = 0 ORDER BY s.day, s.start_min");
   const courses = useRows<any>("SELECT * FROM courses WHERE archived = 0 ORDER BY name");
@@ -242,7 +246,8 @@ function Deadlines({ filter, clear }: { filter: { range?: string; kind?: string 
   const [show, setShow] = useState<"open" | "done">("open");
   const rows = useRows<any>(`SELECT d.*, c.name course, c.color FROM deadlines d LEFT JOIN courses c ON c.id = d.course_id WHERE d.done = ? ORDER BY d.due_at ${show === "done" ? "DESC" : ""} LIMIT 300`, [show === "done" ? 1 : 0]);
   const limit = filter.range === "today" ? 1 : filter.range === "week" ? 7 - dow(new Date()) : filter.range === "month" ? 31 : null;
-  const list = rows.filter((d) => (!filter.kind || d.kind === filter.kind) && (limit == null || (daysUntil(d.due_at) <= limit && daysUntil(d.due_at) >= 0)));
+  const [focus] = useCourseFocus();
+  const list = rows.filter((d) => (!focus || d.course_id === focus.id) && (!filter.kind || d.kind === filter.kind) && (limit == null || (daysUntil(d.due_at) <= limit && daysUntil(d.due_at) >= 0)));
   const groups = useMemo(() => { const g = new Map<string, any[]>(); for (const d of list) { const n = daysUntil(d.due_at); const k = show === "done" ? "Completed" : n < 0 ? "Past due" : n === 0 ? "Today" : n <= 7 - dow(new Date()) ? "This week" : n <= 14 - dow(new Date()) ? "Next week" : "Later"; g.set(k, [...(g.get(k) ?? []), d]); } return [...g.entries()]; }, [list, show]);
   const sameDay = new Map<string, number>(); for (const d of rows) if (!["reminder", "event"].includes(d.kind)) sameDay.set(d.due_at.slice(0, 10), (sameDay.get(d.due_at.slice(0, 10)) ?? 0) + 1);
   return (
@@ -288,6 +293,12 @@ function Courses({ selected, select }: { selected: number | null; select: (id: n
   );
 }
 
+function FocusToggle({ c }: { c: any }) {
+  const [focus, setFocus] = useCourseFocus();
+  const on = focus?.id === c.id;
+  return <button className={"btn" + (on ? "" : " primary")} onClick={() => setFocus(on ? null : { id: c.id, name: c.name, color: c.color })} title="Narrow Home, Knowledge, Academy and Projects to this course"><Icon name="target" size={14} />{on ? "Leave focus" : "Focus on this course"}</button>;
+}
+
 function CourseSpace({ c, back }: { c: any; back: () => void }) {
   const set = useUI((s) => s.set);
   const slots = useRows<any>("SELECT * FROM class_slots WHERE course_id = ? ORDER BY day, start_min", [c.id]);
@@ -302,7 +313,7 @@ function CourseSpace({ c, back }: { c: any; back: () => void }) {
     <div className="col gap5" style={{ "--hue": c.color } as any}>
       <div className="row between gap4" style={{ alignItems: "flex-end" }}>
         <div className="col gap1"><button className="row small faint" onClick={back}><Icon name="chevL" size={13} />All courses</button><span className="label hue">{c.code}</span><h2 className="display" style={{ fontSize: 44 }}>{c.name}</h2><span className="dim">{c.instructor}{c.credits ? ` · ${c.credits} credit hours` : ""}</span></div>
-        <div className="row"><button className="btn" onClick={() => set({ quick: { type: "course", init: { id: c.id } } })}><Icon name="edit" size={14} />Edit</button><button className="btn" onClick={() => set({ quick: { type: "deadline", init: { course_id: c.id } } })}><Icon name="flag" size={14} />Deadline</button><Confirm className="btn ghost danger" label="Archive" icon="archive" onConfirm={() => { void run("UPDATE courses SET archived = 1 WHERE id = ?", [c.id]); back(); }} /></div>
+        <div className="row"><FocusToggle c={c} /><button className="btn" onClick={() => set({ quick: { type: "course", init: { id: c.id } } })}><Icon name="edit" size={14} />Edit</button><button className="btn" onClick={() => set({ quick: { type: "deadline", init: { course_id: c.id } } })}><Icon name="flag" size={14} />Deadline</button><Confirm className="btn ghost danger" label="Archive" icon="archive" onConfirm={() => { void run("UPDATE courses SET archived = 1 WHERE id = ?", [c.id]); back(); }} /></div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1.25fr 1fr", gap: 28 }}>
         <div className="col gap5">

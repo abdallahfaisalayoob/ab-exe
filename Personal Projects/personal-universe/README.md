@@ -31,6 +31,13 @@ today — with a one-click focus timer. Speech is generated on your PC: by a Win
 an optional **natural voice** (the Piper neural engine, a one-time ~85 MB download from Settings, then offline). Try `orion joke` or
 `orion focus 45` in the command bar. Greeting frequency, voice and how it addresses you are in Settings.
 
+**Talk to it.** Hold **Ctrl + Space** and speak — “add a quiz for machine learning on Friday at 3 pm”,
+“spent 450 on lunch”, “focus on operating systems”, “good night”. Speech is recognised on your PC by Whisper
+(a one-time ~60 MB model download from Settings); audio is never stored. **Evening wrap-up**: closing the app
+after 5 pm shows what got done and what moves to tomorrow. **Course focus**: pin one course and Home,
+Knowledge, Academy and Projects narrow to it. **Text recognition**: screenshots, photos of notes and scanned
+PDFs become searchable through the OCR engine built into Windows — nothing to download.
+
 Everywhere: **Ctrl K** command bar (search + structured commands such as `quiz ML friday 3pm`,
 `spent 450 on lunch`, `find all pdfs containing normalisation`), universal drop zone, Signals
 (rule-based insights with their reasoning), three themes, Windows notifications for deadlines.
@@ -39,8 +46,9 @@ Everywhere: **Ctrl K** command bar (search + structured commands such as `quiz M
 
 **Option A — build it yourself (10 minutes, one time)**
 
-1. Install [Node.js 20+](https://nodejs.org), [Rust](https://rustup.rs) (default MSVC toolchain) and the
-   "Desktop development with C++" workload of Visual Studio Build Tools. WebView2 is already part of Windows 10/11.
+1. Install [Node.js 20+](https://nodejs.org), [Rust](https://rustup.rs) (default MSVC toolchain), the
+   "Desktop development with C++" workload of Visual Studio Build Tools, [CMake](https://cmake.org) and
+   [LLVM](https://releases.llvm.org) (both are used to compile the bundled speech-recognition engine). WebView2 is already part of Windows 10/11.
 2. In this folder:
 
 ```bash
@@ -51,7 +59,7 @@ npm install
 npm run build
 ```
 
-3. Run the installer produced at `target\release\bundle\nsis\Personal Universe_0.2.0_x64-setup.exe`.
+3. Run the installer produced at `target\release\bundle\nsis\Personal Universe_0.3.0_x64-setup.exe`.
    It adds a Start-menu entry and a desktop shortcut and installs per-user (no admin rights).
 
 **Option B — let GitHub build it**: the workflow in `.github/workflows/personal-universe.yml`
@@ -87,7 +95,7 @@ npm test
 npm run test:core
 ```
 
-* `npm test` — 37 unit tests: the ORION briefing, timetable parsing (list, day×time grid, room×time grid with one sheet per
+* `npm test` — 41 unit tests: the ORION briefing and wrap-up, spoken-command normalisation, timetable parsing (list, day×time grid, room×time grid with one sheet per
   day, time×day grid), conflict detection, natural-language dates, command grammar, finance maths
   (balances, net worth, transfers, projection, statement import), workload model, engineering helpers.
 * `npm run test:core` — Rust integration tests against a real database: recursive import, DOCX/XLSX/CSV
@@ -108,6 +116,8 @@ crates/core/        pu-core — everything that touches disk. No Tauri dependenc
   handoff.rs        AI handoff packaging + privacy ledger
   serve.rs          previews & cached thumbnails for indexed files only
   voice.rs          optional local neural speech (Piper): verified download, offline synthesis
+  stt.rs            speech recognition (Whisper, compiled in): verified model download, offline
+  ocr.rs            text recognition via Windows.Media.Ocr; page images of scanned PDFs
   bin/pu-dev.rs     development bridge (not shipped)
 src-tauri/          the desktop shell: one command (`pu`), the `pu://` protocol, OS plugins
 src/
@@ -134,8 +144,9 @@ Design decisions worth knowing:
 
 ## Privacy
 
-Nothing is transmitted by the application unless you switch it on. There are three outward paths. Installing
-ORION's natural voice downloads the Piper engine and one voice model (from github.com/rhasspy/piper and
+Nothing is transmitted by the application unless you switch it on. There are three kinds of outward path. Installing
+ORION's natural voice or its speech recognition downloads model files (speech recognition from
+huggingface.co/ggerganov/whisper.cpp). The natural voice downloads the Piper engine and one voice model (from github.com/rhasspy/piper and
 huggingface.co/rhasspy/piper-voices, each file checked against a pinned SHA-256); nothing of yours is sent. The
 optional weather line in ORION's briefing (off by default) sends your city's coordinates — nothing
 else — to open-meteo.com. The other is an AI handoff: the app copies the
@@ -143,10 +154,12 @@ chosen files and prompt into a folder, puts the prompt on the clipboard and — 
 claude.ai or chatgpt.com in your browser. You paste and attach. Each handoff, and switching weather on, is recorded in
 Archive → Privacy ledger. The UI never claims a file was uploaded.
 
-## Known limits (v0.2)
+## Known limits (v0.3)
 
-* Scanned PDFs and images are indexed by name and metadata only (no OCR). Legacy `.doc`/`.ppt` are not
-  text-extracted; `.docx`/`.pptx`/`.xlsx`/`.xls` are.
+* Text recognition uses the Windows OCR engine, so it reads printed text in the languages installed in
+  Windows; handwriting is hit-and-miss. For scanned PDFs it reads JPEG page images (up to 12 per file).
+  Legacy `.doc`/`.ppt` are not text-extracted; `.docx`/`.pptx`/`.xlsx`/`.xls` are.
+* Voice commands are English only and follow the command bar's grammar — it is not a conversation.
 * Watched folders are re-checked at launch and every ten minutes, not by a live file-system watcher.
 * "Related files" and the graph use shared key terms (term frequency), not semantic embeddings — see
   `docs/PRODUCT.md` for the planned optional local semantic search.

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { call, isTauri, native, q, run } from "../lib/backend";
 import { findPlace, speak, type Place } from "../lib/orion";
-import { importPaths, useJobs } from "../lib/actions";
+import { importPaths, useJobs, watchJobs } from "../lib/actions";
+import { listenReady } from "../lib/listen";
 import { ago } from "../lib/dates";
 import { bytes } from "../lib/format";
 import { useQ, useRows, useSetting } from "../lib/hooks";
@@ -113,7 +114,7 @@ export function ActivityCenter() {
   );
 }
 
-const SHORTCUTS: [string, string][] = [["Ctrl K", "Command bar"], ["Ctrl 1–7", "Switch world"], ["Ctrl D", "New deadline"], ["Ctrl E", "New transaction"], ["Ctrl ⇧ V", "Capture clipboard"], ["Ctrl ,", "Settings"], ["F11", "Full screen"], ["Esc", "Close panel"]];
+const SHORTCUTS: [string, string][] = [["Ctrl K", "Command bar"], ["Ctrl Space", "Talk to ORION (hold)"], ["Ctrl 1–7", "Switch world"], ["Ctrl D", "New deadline"], ["Ctrl E", "New transaction"], ["Ctrl ⇧ V", "Capture clipboard"], ["Ctrl ,", "Settings"], ["F11", "Full screen"], ["Esc", "Close panel"]];
 
 export function Settings() {
   const close = () => useUI.getState().set({ settings: false });
@@ -167,6 +168,16 @@ export function Settings() {
     await call("voice.install", { voice: pickVoice });
     pollRef.current();
   });
+  const [oWrap, setOWrap] = useSetting("orion.wrap", "evening");
+  const [ocrOn, setOcrOn] = useSetting("ocr", true);
+  const [ls, setLs] = useState<any>(null);
+  useEffect(() => {
+    let live = true, timer: any;
+    const poll = async () => { const s = await call<any>("stt.status").catch(() => null); if (!live) return; setLs(s); if (s?.job.state === "downloading") timer = setTimeout(poll, 500); else if (s?.installed) void listenReady(true); };
+    void poll(); listenPoll.current = poll;
+    return () => { live = false; clearTimeout(timer); };
+  }, []);
+  const listenPoll = useRef<() => void>(() => {});
   const [auto, setAuto] = useState<boolean | null>(null);
   const info = useQ(() => call<any>("app.info"), []).data;
   const counts = useQ(() => q<any>("SELECT (SELECT COUNT(*) FROM files) files, (SELECT COUNT(*) FROM outbound_log) outbound"), []).data?.[0];
@@ -203,6 +214,14 @@ export function Settings() {
             {vs?.job.state === "error" && <span className="small bad">{vs.job.error}</span>}
             {vs && !vs.engine && vs.job.state !== "downloading" && <span className="faint" style={{ fontSize: 11 }}>Downloads from {vs.sources.join(" and ")}; each file is verified before use. Nothing of yours is sent.</span>}
           </div>
+          <div className="col gap1" style={{ padding: "10px 0" }}>
+            <div className="row between gap4"><div className="col" style={{ gap: 1 }}><span>Talk to ORION</span><span className="small faint">{ls?.installed ? "Ready. Hold Ctrl + Space, speak, let go — or use the microphone button. Your voice is recognised on this computer and never stored." : "Speak commands instead of typing them. Recognition runs on this computer; one-time download."}</span></div>
+              {ls?.installed ? <Confirm className="btn sm ghost" label="Remove" onConfirm={() => attempt(async () => setLs(await call("stt.remove")))} /> : ls?.job.state !== "downloading" && <button className="btn sm primary" onClick={() => attempt(async () => { await call("stt.install"); listenPoll.current(); })}>Download · {bytes(ls?.size ?? 0)}</button>}</div>
+            {ls?.job.state === "downloading" && <div className="col gap1"><div className="bar"><i style={{ width: `${Math.min(100, (ls.job.done / Math.max(1, ls.job.total)) * 100)}%` }} /></div><span className="small faint">{bytes(ls.job.done)} of {bytes(ls.job.total)}</span></div>}
+            {ls?.job.state === "error" && <span className="small bad">{ls.job.error}</span>}
+            {ls?.installed && <span className="faint" style={{ fontSize: 11 }}>Try: “add a quiz for machine learning on Friday at 3 pm” · “spent 450 on lunch” · “focus on operating systems” · “start a 50 minute focus” · “good night”.</span>}
+          </div>
+          <Row title="Evening wrap-up" sub="When you close the app: what got done, what moves to tomorrow"><Seg value={oWrap} onChange={setOWrap} options={[{ value: "evening", label: "After 5 pm" }, { value: "always", label: "Always" }, { value: "never", label: "Never" }]} /></Row>
           <Row title="Call me"><input className="input" style={{ width: 150 }} value={oAddress} onChange={(e) => setOAddress(e.target.value)} placeholder="sir, boss, your name…" /></Row>
           <Row title="Weather" sub={oWeather && oPlace ? `On for ${oPlace.name}. The only online request the app makes: coordinates → open-meteo.com.` : "Off. Needs the internet: your city's coordinates are sent to open-meteo.com."}>
             {oWeather ? <button className="btn sm" onClick={() => setOWeather(false)}>Turn off</button> : <div className="row gap1"><input className="input" style={{ width: 120 }} value={city} onChange={(e) => setCity(e.target.value)} onKeyDown={(e) => e.key === "Enter" && enableWeather()} placeholder={oPlace?.name ?? "City"} /><button className="btn sm" onClick={enableWeather} disabled={!city.trim() && !oPlace}>Turn on</button></div>}
@@ -221,8 +240,11 @@ export function Settings() {
             <input className="input num" style={{ width: 110 }} type="number" min="0" step="0.01" value={usdRate || ""} placeholder="e.g. 280" onChange={(e) => setUsdRate(+e.target.value || 0)} />
           </Row>
           <hr className="hr" style={{ margin: "8px 0 12px" }} /><span className="label">Privacy</span>
-          <p className="small dim" style={{ padding: "8px 0" }}>No telemetry, no accounts, no cloud. Only three things can reach the internet, each started by you: an AI handoff you confirm, the optional weather line in ORION’s briefing, and the one-time download of ORION’s natural voice. All are written to the privacy ledger ({counts?.outbound ?? 0} so far).</p>
+          <p className="small dim" style={{ padding: "8px 0" }}>No telemetry, no accounts, no cloud. Only these can reach the internet, each started by you: an AI handoff you confirm, the optional weather line in ORION’s briefing, and the one-time downloads of ORION’s voice and speech recognition. All are written to the privacy ledger ({counts?.outbound ?? 0} so far).</p>
           <div className="row"><button className="btn sm" onClick={() => { close(); go("archive", { tab: "privacy" }); }}><Icon name="shield" size={14} />Privacy ledger</button><button className="btn sm" onClick={() => { close(); go("archive", { tab: "backups" }); }}><Icon name="download" size={14} />Backups & export</button></div>
+          <hr className="hr" style={{ margin: "14px 0 12px" }} /><span className="label">Reading text in images</span>
+          <Row title="Recognise text in screenshots, photos and scanned PDFs" sub={info?.ocr ? "Uses the text recognition built into Windows. Nothing is downloaded or sent." : "Uses the text recognition built into Windows — available in the installed desktop app."}><Toggle on={ocrOn && !!info?.ocr} onChange={(v) => info?.ocr && setOcrOn(v)} label="Text recognition" /></Row>
+          {info?.ocr && ocrOn && <div className="row"><button className="btn sm" onClick={() => attempt(async () => { const r = await call<any>("files.reocr"); void watchJobs(); return r; }, "Re-reading images and scanned PDFs in the background.")}><Icon name="repeat" size={14} />Re-read images already in my library</button></div>}
           <hr className="hr" style={{ margin: "14px 0 12px" }} /><span className="label">Data on this computer</span>
           <div className="col gap1 small" style={{ padding: "8px 0" }}>
             <span className="dim selectable mono" style={{ wordBreak: "break-all" }}>{info?.dataDir}</span>

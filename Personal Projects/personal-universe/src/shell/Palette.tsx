@@ -1,6 +1,7 @@
 // The Universal Action Engine: one field that searches everything and runs structured
 // commands. All matching is local — pattern rules, fuzzy names and SQLite full-text search.
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useCourseFocus } from "../lib/hooks";
 import { call, log, native, q, run } from "../lib/backend";
 import { capture, captureClipboard, guessCategory, pickAndImport, rescan } from "../lib/actions";
 import { interpret, Interp } from "../lib/commands";
@@ -26,7 +27,11 @@ interface Item { key: string; group: string; title: string; sub?: string; icon: 
 
 export function Palette() {
   const { go, set } = useUI();
-  const [text, setText] = useState("");
+  const seed = useUI((s) => s.seed);
+  const [text, setText] = useState(seed?.text ?? "");
+  const auto = useRef(seed?.auto ? seed.text : null);
+  const [, setFocusCourse] = useCourseFocus();
+  useEffect(() => { useUI.setState({ seed: null }); }, []);
   const [sel, setSel] = useState(0);
   const [found, setFound] = useState<Item[]>([]);
   const query = useDebounced(text, 110);
@@ -45,7 +50,7 @@ export function Palette() {
   }, []).data;
 
   const actions: Item[] = useMemo(() => [
-    { key: "a-orion", group: "Actions", title: "ORION, brief me", sub: "Today's classes, deadlines, money and your one mission", icon: "orbit", color: "var(--hue-home)", run: () => set({ palette: false, orion: true }) },
+    { key: "a-orion", group: "Actions", title: "ORION, brief me", sub: "Today's classes, deadlines, money and your one mission", icon: "orbit", color: "var(--hue-home)", run: () => set({ palette: false, orion: "brief" }) },
     { key: "a-focus", group: "Actions", title: "Start a 25-minute focus block", sub: "ORION keeps time and tells you when it is done", icon: "clock", run: () => { close(); startFocus("Focus block", 25); } },
     { key: "a-deadline", group: "Actions", title: "New deadline", sub: "Assignment, quiz, exam, reminder…", icon: "flag", hint: "Ctrl D", run: () => set({ palette: false, quick: { type: "deadline" } }) },
     { key: "a-tx", group: "Actions", title: "New transaction", sub: "Record income, an expense or a transfer", icon: "wallet", hint: "Ctrl E", run: () => set({ palette: false, quick: { type: "tx" } }) },
@@ -76,9 +81,17 @@ export function Palette() {
         if (/joke|funny|laugh/.test(ask)) items.push({ key: "o-j", group: "ORION", title: "Tell me a joke", icon: "spark", color: "var(--hue-home)", run: () => { const j = JOKES[Math.floor(Math.random() * JOKES.length)]; close(); toast(j); speak(j); } });
         else if (/who are you|your name|what are you/.test(ask)) items.push({ key: "o-w", group: "ORION", title: "Who are you?", icon: "orbit", color: "var(--hue-home)", run: () => { const a = "ORION: Offline, Rather Intelligent, Organisational Navigator. I read your timetable, deadlines and ledger on this computer, and I never phone home."; close(); toast(a); speak(a); } });
         else if (/focus/.test(ask)) items.push({ key: "o-f", group: "ORION", title: `Start a ${fm ? fm[1] : 25}-minute focus block`, icon: "clock", color: "var(--hue-home)", run: () => { close(); startFocus("Focus block", fm ? +fm[1] : 25); } });
-        else items.push({ key: "o-b", group: "ORION", title: "Brief me", sub: "Try also: “orion joke”, “orion focus 45”, “orion who are you”", icon: "orbit", color: "var(--hue-home)", run: () => set({ palette: false, orion: true }) });
+        else if (/wrap|night|done for/.test(ask)) items.push({ key: "o-n", group: "ORION", title: "Wrap up the day", sub: "What got done, what moves to tomorrow", icon: "orbit", color: "var(--hue-home)", run: () => set({ palette: false, orion: "wrap" }) });
+        else items.push({ key: "o-b", group: "ORION", title: "Brief me", sub: "Try also: “orion joke”, “orion focus 45”, “orion who are you”", icon: "orbit", color: "var(--hue-home)", run: () => set({ palette: false, orion: "brief" }) });
       }
-      const interp = o ? [] : interpret(t);
+      // Course focus: "focus on machine learning", "leave focus".
+      const fo = !o && t.match(/^(?:focus on|focus the app on|study|work on) (.+)$/i);
+      if (fo) {
+        const best = (ents?.courses ?? []).map((c) => ({ c, s: Math.max(fuzzy(fo[1], c.name), fuzzy(fo[1], c.code), courseMatch(fo[1], c) * 60) })).sort((a, b) => b.s - a.s)[0];
+        if (best?.s > 0) items.push({ key: "cf", group: "Command", title: `Focus the app on ${best.c.name}`, sub: "Every world narrows to this course until you leave focus", icon: "target", color: best.c.color, run: () => { setFocusCourse({ id: best.c.id, name: best.c.name, color: best.c.color }); close(); toast(`Focused on ${best.c.name}.`, "good"); go("academy", { tab: "courses", id: best.c.id }); } });
+      }
+      if (!o && /^(?:leave|clear|exit|end|stop) (?:the )?(?:course )?focus$/i.test(t)) items.push({ key: "cl", group: "Command", title: "Leave course focus", icon: "x", run: () => { setFocusCourse(null); close(); toast("Course focus cleared.", "good"); } });
+      const interp = o || items.length ? [] : interpret(t);
       for (const it of interp) { const item = toItem(it); if (item) items.push(item); }
 
       const openI = interp.find((i) => i.type === "open") as Extract<Interp, { type: "open" }> | undefined;
@@ -104,6 +117,18 @@ export function Palette() {
         if (files.length >= 7) items.push({ key: "more", group: "Files", title: `See every file matching “${needle}”`, icon: "search", run: () => go("knowledge", { query: needle }) });
       }
       if (live) { setFound(items); setSel(0); }
+      // A spoken command runs straight away when it was understood as a command; otherwise the
+      // results stay on screen so nothing unexpected happens.
+      if (live && auto.current === t && ents) { // wait until course and project names are loaded
+        auto.current = null;
+        const first = items[0];
+        if (first && (first.group === "Command" || first.group === "ORION")) {
+          const before = useUI.getState().toasts.at(-1)?.id ?? 0;
+          await attempt(async () => first.run());
+          const said = useUI.getState().toasts.at(-1);
+          if (said && said.id !== before && said.kind !== "error" && first.group === "Command") void speak(said.text.replace(/[“”]/g, ""));
+        } else void speak(items.length ? "Here is what I found." : "I heard: " + t + ". I am not sure what to do with that.");
+      }
     })();
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

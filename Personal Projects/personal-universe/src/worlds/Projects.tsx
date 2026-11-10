@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { log, run } from "../lib/backend";
 import { daysUntil, fmtDate, parseLocal, relDay, today, ymd } from "../lib/dates";
 import { plural } from "../lib/format";
-import { useIntent, useRows } from "../lib/hooks";
+import { useCourseFocus, useIntent, useRows } from "../lib/hooks";
 import { attempt, useUI } from "../lib/store";
 import { Icon } from "../ui/Icons";
 import { Check, Confirm, Empty, Field, Modal, Ring, Seg, Tabs, useDrag } from "../ui/kit";
@@ -22,11 +22,12 @@ export default function Projects() {
   const projects = useRows<any>("SELECT p.*, c.name course, (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id) total, (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'done') done, (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'doing') doing, (SELECT MIN(date) FROM milestones m WHERE m.project_id = p.id AND m.done = 0) next_ms FROM projects p LEFT JOIN courses c ON c.id = p.course_id ORDER BY p.status = 'done', p.priority DESC, p.due_date IS NULL, p.due_date");
   const p = projects.find((x) => x.id === id);
   if (p) return <Workspace p={p} back={() => setId(null)} />;
-  const list = projects.filter((x) => show === "all" || x.status === "active");
+  const [focus] = useCourseFocus();
+  const list = projects.filter((x) => (show === "all" || x.status === "active") && (!focus || x.course_id === focus.id));
   return (
     <>
       <div className="world-head">
-        <div><h1 className="display">Projects</h1><p className="sub">Objectives, tasks, milestones, notes and files — together, and connected to the course they belong to.</p></div>
+        <div><h1 className="display">Projects</h1><p className="sub">{focus ? `Showing projects for ${focus.name} only — leave course focus in the top bar to see everything.` : "Objectives, tasks, milestones, notes and files — together, and connected to the course they belong to."}</p></div>
         <div className="row"><Seg value={show} onChange={setShow} options={[{ value: "active", label: "Active" }, { value: "all", label: "All" }]} /><button className="btn primary" onClick={() => set({ quick: { type: "project" } })}><Icon name="plus" size={14} />New project</button></div>
       </div>
       <div className="world-body">

@@ -4,7 +4,7 @@
 // optional online ingredient is the weather, which is off until you switch it on.
 import { call, fileUrl, q } from "./backend";
 import { setting, useSettings } from "./hooks";
-import { DAYS, MONTHS, daysUntil, dow, hm, relDay } from "./dates";
+import { DAYS, MONTHS, addDays, daysUntil, dow, hm, relDay, ymd } from "./dates";
 import { byCategory, convert, type Account, type Tx } from "./finance";
 import { money, plural } from "./format";
 import { monthKey } from "./dates";
@@ -120,6 +120,61 @@ export async function gather(now = new Date(), weather: Weather | null = null): 
     spent: cats.reduce((s, c) => s + c.total, 0), currency: base, hasMoney: accounts.length > 0,
     overBudget: budgets.filter((b: any) => (cats.find((c) => c.category === b.category)?.total ?? 0) > convert(b.monthly_limit, b.currency, base, rate)).map((b: any) => b.category),
     lastBackup: backups[0]?.modified ?? null, weather,
+  };
+}
+
+// ── Evening wrap-up ──────────────────────────────────────────────────────────
+export interface DayFacts {
+  address: string;
+  finished: string[];            // deadlines and tasks completed today
+  focusMinutes: number;
+  filesAdded: number; captured: number;
+  spent: number; currency: string; hasMoney: boolean;
+  carried: { title: string; due_at: string }[];   // was due today or earlier, still open
+  tomorrowClasses: { name: string; start_min: number; room: string }[];
+  tomorrowDue: string[];
+}
+export interface WrapUp { greeting: string; dateLine: string; done: Line[]; ahead: Line[]; signoff: string; speech: string }
+
+export function composeWrap(f: DayFacts, now: Date): WrapUp {
+  const h = now.getHours(), sir = f.address ? `, ${f.address}` : "";
+  const greeting = h < 5 ? `Time to rest${sir}.` : h < 17 ? `Stepping away${sir}?` : h < 21 ? `That's the day${sir}.` : `Good night${sir}.`;
+  const done: Line[] = [], ahead: Line[] = [], say = [greeting];
+  if (f.finished.length) { const t = `You finished ${plural(f.finished.length, "thing")} today: ${f.finished.slice(0, 3).join(", ")}${f.finished.length > 3 ? ` and ${f.finished.length - 3} more` : ""}.`; done.push({ icon: "check", text: t, tone: "good" }); say.push(t); }
+  if (f.focusMinutes > 0) { const t = `${f.focusMinutes} minutes of focused work.`; done.push({ icon: "clock", text: t, tone: "good" }); say.push(t); }
+  const misc = [f.filesAdded && plural(f.filesAdded, "file") + " added to your library", f.captured && plural(f.captured, "thought") + " captured"].filter(Boolean).join(" and ");
+  if (misc) done.push({ icon: "knowledge", text: cap(misc) + "." });
+  if (f.hasMoney) done.push({ icon: "wallet", text: f.spent > 0 ? `${money(f.spent, f.currency)} spent today.` : "Nothing spent today.", world: "finance" });
+  if (!f.finished.length && !f.focusMinutes && !misc) done.push({ icon: "home", text: "A quiet day on the record — and that is allowed." });
+
+  if (f.carried.length) { const t = `${plural(f.carried.length, "item")} ${f.carried.length === 1 ? "moves" : "move"} to tomorrow: ${f.carried.slice(0, 3).map((c) => c.title).join(", ")}.`; ahead.push({ icon: "flag", text: t, world: "academy", tab: "deadlines", tone: "warn" }); say.push(t); }
+  const first = f.tomorrowClasses[0];
+  if (first) { const t = `Tomorrow starts with ${first.name} at ${hm(first.start_min)}${first.room ? ` in ${first.room}` : ""}${f.tomorrowClasses.length > 1 ? `, ${f.tomorrowClasses.length} classes in all` : ""}.`; ahead.push({ icon: "calendar", text: t, world: "academy", tab: "week" }); say.push(t); }
+  else ahead.push({ icon: "calendar", text: "No classes tomorrow.", world: "academy", tab: "week", tone: "good" });
+  if (f.tomorrowDue.length) { const t = `Due tomorrow: ${f.tomorrowDue.join(", ")}.`; ahead.push({ icon: "flag", text: t, world: "academy", tab: "deadlines" }); say.push(t); }
+  const signoff = h >= 21 || h < 5 ? "I'll keep the lights on. Sleep well." : "Everything is saved. I'll be here.";
+  say.push(signoff);
+  return { greeting, dateLine: `${DAYS[dow(now)]}, ${now.getDate()} ${MONTHS[now.getMonth()]} · ${hm(h * 60 + now.getMinutes())}`, done, ahead, signoff, speech: say.join(" ") };
+}
+
+export async function gatherDay(now = new Date()): Promise<DayFacts> {
+  const day = ymd(now), tmr = addDays(now, 1), base = setting("currency", "PKR"), rate = setting("usdRate", 0);
+  const local = (col: string) => `strftime('%Y-%m-%d', ${col} / 1000, 'unixepoch', 'localtime')`;
+  const [fin, focus, counts, accounts, txs, carried, classes, due] = await Promise.all([
+    q<any>(`SELECT title FROM deadlines WHERE done = 1 AND ${local("done_at")} = ?1 UNION ALL SELECT title FROM tasks WHERE done_at IS NOT NULL AND ${local("done_at")} = ?1`, [day]),
+    q<any>(`SELECT title FROM activity WHERE kind = 'focus' AND ${local("ts")} = ?`, [day]),
+    q<any>(`SELECT (SELECT COUNT(*) FROM files WHERE ${local("imported_at")} = ?1) files, (SELECT COUNT(*) FROM notes WHERE owner_type = 'capture' AND ${local("created_at")} = ?1) captured`, [day]),
+    q<Account>("SELECT * FROM accounts"), q<Tx>("SELECT * FROM transactions WHERE date = ?", [day]),
+    q<any>("SELECT title, due_at FROM deadlines WHERE done = 0 AND kind NOT IN ('event') AND substr(due_at, 1, 10) <= ? ORDER BY due_at", [day]),
+    q<any>("SELECT c.name, s.start_min, s.room FROM class_slots s JOIN courses c ON c.id = s.course_id WHERE s.day = ? AND c.archived = 0 ORDER BY s.start_min", [dow(tmr)]),
+    q<any>("SELECT title FROM deadlines WHERE done = 0 AND substr(due_at, 1, 10) = ? ORDER BY due_at", [ymd(tmr)]),
+  ]);
+  return {
+    address: setting("orion.address", "sir"), finished: fin.map((r: any) => r.title),
+    focusMinutes: focus.reduce((n: number, r: any) => n + (parseInt(r.title.replace(/\D+/g, " ").trim()) || 0), 0),
+    filesAdded: counts[0].files, captured: counts[0].captured,
+    spent: byCategory(accounts, txs, base, rate).reduce((s, c) => s + c.total, 0), currency: base, hasMoney: accounts.length > 0,
+    carried, tomorrowClasses: classes, tomorrowDue: due.map((r: any) => r.title),
   };
 }
 

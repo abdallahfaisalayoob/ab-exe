@@ -9,7 +9,9 @@ pub mod extract;
 pub mod grid;
 pub mod handoff;
 pub mod indexer;
+pub mod ocr;
 pub mod serve;
+pub mod stt;
 pub mod voice;
 
 use anyhow::{anyhow, Result};
@@ -27,6 +29,8 @@ pub struct Core {
     pub job_seq: AtomicU64,
     pub index_turn: Mutex<()>,
     pub voice: Mutex<voice::VoiceJob>,
+    pub listen_job: Mutex<voice::VoiceJob>,
+    pub whisper: Mutex<Option<whisper_rs::WhisperContext>>,
 }
 
 impl Core {
@@ -38,7 +42,7 @@ impl Core {
         let db_path = data_dir.join("universe.db");
         let mut conn = db::open(&db_path)?;
         db::migrate(&mut conn)?;
-        let core = Arc::new(Core { data_dir: data_dir.to_path_buf(), db_path, conn: Mutex::new(conn), jobs: Mutex::new(Vec::new()), job_seq: AtomicU64::new(1), index_turn: Mutex::new(()), voice: Mutex::new(voice::VoiceJob::default()) });
+        let core = Arc::new(Core { data_dir: data_dir.to_path_buf(), db_path, conn: Mutex::new(conn), jobs: Mutex::new(Vec::new()), job_seq: AtomicU64::new(1), index_turn: Mutex::new(()), voice: Mutex::new(voice::VoiceJob::default()), listen_job: Mutex::new(voice::VoiceJob::default()), whisper: Mutex::new(None) });
         // A quiet safety net: one automatic backup per day, pruned to the latest ten.
         let _ = backup::auto(&core);
         Ok(core)
@@ -98,6 +102,12 @@ pub fn dispatch(core: &Arc<Core>, cmd: &str, args: &Value) -> Result<Value> {
 
         "handoff.prepare" => handoff::prepare(core, args),
 
+        "stt.status" => Ok(stt::status(core)),
+        "stt.install" => stt::install(core),
+        "stt.remove" => stt::remove(core),
+        "stt.transcribe" => stt::transcribe(core, s(args, "pcm")?, args.get("prompt").and_then(|v| v.as_str()).unwrap_or("")),
+        "files.reocr" => indexer::reocr(core),
+
         "voice.status" => Ok(voice::status(core)),
         "voice.install" => voice::install(core, s(args, "voice")?),
         "voice.remove" => voice::remove(core),
@@ -111,6 +121,7 @@ pub fn dispatch(core: &Arc<Core>, cmd: &str, args: &Value) -> Result<Value> {
                 "dbPath": core.db_path.to_string_lossy(),
                 "dbSize": size,
                 "sep": std::path::MAIN_SEPARATOR.to_string(),
+                "ocr": ocr::available(),
             }))
         }
         other => Err(anyhow!("unknown command: {other}")),

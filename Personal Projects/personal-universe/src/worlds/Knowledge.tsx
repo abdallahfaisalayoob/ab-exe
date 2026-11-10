@@ -5,14 +5,14 @@ import { fileUrl, isTauri, native, q, run, batch, call } from "../lib/backend";
 import { link, openFile, pickAndImport, rescan } from "../lib/actions";
 import { MONTHS, ago, fmtDate } from "../lib/dates";
 import { bytes, ftsQuery, KIND_COLOR, KIND_LABEL, PALETTE, plural } from "../lib/format";
-import { useDebounced, useIntent, useQ, useRows, useSetting } from "../lib/hooks";
+import { useCourseFocus, useDebounced, useIntent, useQ, useRows, useSetting } from "../lib/hooks";
 import { attempt, toast, useUI } from "../lib/store";
 import { Icon, KIND_ICON } from "../ui/Icons";
 import { Check, Confirm, Empty, Menu, MenuItem, Seg } from "../ui/kit";
 import { FileRow, Inspector, Preview, Snip } from "../shell/Files";
 import { GraphView, SpatialView } from "./KnowledgeViews";
 
-type Scope = { t: "all" } | { t: "collection"; id: number } | { t: "inbox" } | { t: "fav" } | { t: "recent"; days: number } | { t: "dups" } | { t: "missing" } | { t: "tag"; id: number };
+type Scope = { t: "all" } | { t: "collection"; id: number } | { t: "inbox" } | { t: "fav" } | { t: "recent"; days: number } | { t: "dups" } | { t: "missing" } | { t: "tag"; id: number } | { t: "course"; id: number };
 type View = "spatial" | "gallery" | "tree" | "graph" | "timeline";
 const VIEWS: { value: View; label: string; icon: string }[] = [{ value: "spatial", label: "Map", icon: "orbit" }, { value: "gallery", label: "Gallery", icon: "grid" }, { value: "tree", label: "Folders", icon: "tree" }, { value: "graph", label: "Graph", icon: "knowledge" }, { value: "timeline", label: "Timeline", icon: "timeline" }];
 const SORTS: Record<string, string> = { relevance: "bm25(files_fts, 8.0, 1.0)", modified: "f.mtime DESC", name: "f.name COLLATE NOCASE", size: "f.size DESC", added: "f.imported_at DESC, f.id DESC" };
@@ -29,6 +29,9 @@ export default function Knowledge() {
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [limit, setLimit] = useState(120);
   const search = useDebounced(text, 160);
+  const [courseFocus] = useCourseFocus();
+  // Entering or leaving course focus moves the library to that course's linked files and back.
+  useEffect(() => { setScope(courseFocus ? { t: "course", id: courseFocus.id } : (sc) => (sc.t === "course" ? { t: "all" } : sc)); }, [courseFocus?.id]);
 
   useIntent("knowledge", (i) => {
     if (i.action === "import") void pickAndImport("folder");
@@ -55,6 +58,7 @@ export default function Knowledge() {
     else if (scope.t === "fav") conds.push("f.favourite = 1");
     else if (scope.t === "missing") conds.push("f.missing = 1");
     else if (scope.t === "recent") { conds.push("f.mtime >= ?"); params.push(Date.now() - scope.days * 86400000); }
+    else if (scope.t === "course") { conds.push("f.id IN (SELECT a_id FROM links WHERE a_type = 'file' AND b_type = 'course' AND b_id = ?)"); params.push(scope.id); }
     else if (scope.t === "tag") { conds.push("f.id IN (SELECT file_id FROM file_tags WHERE tag_id = ?)"); params.push(scope.id); }
     if (ext) { conds.push("f.ext = ?"); params.push(ext); }
     const mk = (c: string[], p: (string | number)[]) => ({ from: `FROM files f ${fq ? "JOIN files_fts ON files_fts.rowid = f.id" : ""} WHERE ${c.length ? c.join(" AND ") : "1"}`, params: p });
@@ -73,7 +77,7 @@ export default function Knowledge() {
     if (e && (e.ctrlKey || e.metaKey)) { const n = new Set(sel); n.has(id) ? n.delete(id) : n.add(id); setSel(n); } else setFocus(id);
   };
   const open = (id: number) => { const f = files.find((x) => x.id === id); if (f) void openFile(f); else q<FileRow>("SELECT * FROM files WHERE id = ?", [id]).then((r) => r[0] && openFile(r[0])); };
-  const scopeName = scope.t === "all" ? "Everything" : scope.t === "collection" ? collections.find((c) => c.id === scope.id)?.name ?? "Collection" : scope.t === "inbox" ? "Inbox" : scope.t === "fav" ? "Favourites" : scope.t === "recent" ? `Modified in the last ${scope.days} days` : scope.t === "dups" ? "Duplicates" : scope.t === "missing" ? "Missing files" : "#" + (tags.find((t) => t.id === scope.id)?.name ?? "tag");
+  const scopeName = scope.t === "all" ? "Everything" : scope.t === "collection" ? collections.find((c) => c.id === scope.id)?.name ?? "Collection" : scope.t === "inbox" ? "Inbox" : scope.t === "fav" ? "Favourites" : scope.t === "recent" ? `Modified in the last ${scope.days} days` : scope.t === "dups" ? "Duplicates" : scope.t === "missing" ? "Missing files" : scope.t === "course" ? `${courseFocus?.name ?? "Course"} — linked files` : "#" + (tags.find((t) => t.id === scope.id)?.name ?? "tag");
 
   if (collections.length === 0) return (
     <div className="world-body" style={{ display: "grid", placeItems: "center" }}>
@@ -92,6 +96,7 @@ export default function Knowledge() {
       {/* Library rail */}
       <nav className="col scroll" style={{ width: 228, flex: "none", padding: "16px 10px calc(var(--dock-h) + 20px) 18px", gap: 2 }}>
         <RailItem icon="orbit" label="Everything" count={counts.total} on={scope.t === "all"} onClick={() => setScope({ t: "all" })} />
+        {courseFocus && <RailItem icon="target" label={courseFocus.name} on={scope.t === "course"} onClick={() => setScope({ t: "course", id: courseFocus.id })} />}
         <RailItem icon="inbox" label="Inbox" count={counts.inbox} on={scope.t === "inbox"} onClick={() => setScope({ t: "inbox" })} accent />
         <RailItem icon="star" label="Favourites" count={counts.fav} on={scope.t === "fav"} onClick={() => setScope({ t: "fav" })} />
         <RailItem icon="clock" label="Recent" on={scope.t === "recent"} onClick={() => { setScope({ t: "recent", days: 7 }); }} />

@@ -290,6 +290,8 @@ fn run(core: &Arc<Core>, job: u64, collection_id: i64, src: Source) -> Result<()
     let _turn = core.index_turn.lock().unwrap_or_else(|p| p.into_inner());
     let mut conn = db::open(&core.db_path)?;
     let now = now_ms();
+    let ocr: Option<String> = conn.query_row("SELECT value FROM settings WHERE key = 'ocr'", [], |r| r.get(0)).ok();
+    crate::ocr::ENABLED.store(ocr.as_deref() != Some("false"), Ordering::Relaxed);
 
     // What do we already know about?
     struct Known {
@@ -460,4 +462,21 @@ fn run(core: &Arc<Core>, job: u64, collection_id: i64, src: Source) -> Result<()
         )?;
     }
     Ok(())
+}
+
+/// Queues images and text-less PDFs for another pass, so text recognition can read files that
+/// were indexed before it was available. Returns how many files will be re-read.
+pub fn reocr(core: &Arc<Core>) -> Result<Value> {
+    let (n, ids): (usize, Vec<i64>) = {
+        let conn = core.conn.lock().unwrap();
+        let n = conn.execute("UPDATE files SET indexed_at = NULL WHERE missing = 0 AND text_len < 40 AND (kind = 'image' OR ext = 'pdf')", [])?;
+        let mut stmt = conn.prepare("SELECT DISTINCT collection_id FROM files WHERE indexed_at IS NULL")?;
+        let ids = stmt.query_map([], |r| r.get(0))?.flatten().collect();
+        (n, ids)
+    };
+    let mut jobs = Vec::new();
+    for id in ids {
+        jobs.extend(rescan(core, Some(id))?["jobs"].as_array().cloned().unwrap_or_default());
+    }
+    Ok(json!({ "files": n, "jobs": jobs, "available": crate::ocr::available() }))
 }

@@ -106,6 +106,17 @@ export const native = {
     } catch { /* notifications are best-effort */ }
     return false;
   },
+  /** Calls `ask` when the window is about to close; returning true keeps it open. */
+  async onClose(ask: () => boolean) {
+    if (!isTauri) return () => {};
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    return getCurrentWindow().onCloseRequested((e) => { if (ask()) e.preventDefault(); });
+  },
+  async quit() {
+    if (!isTauri) return;
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().destroy();
+  },
   async win(action: "minimize" | "maximize" | "close" | "fullscreen" | "drag") {
     if (!isTauri) {
       if (action === "fullscreen") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();

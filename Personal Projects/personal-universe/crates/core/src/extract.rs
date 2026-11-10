@@ -59,7 +59,21 @@ pub fn extract(path: &Path, ext: &str, size: u64) -> Extracted {
         read_text(path, size)
     } else {
         match ext {
-            "pdf" if size <= MAX_DOC_FILE => pdf_text(path),
+            "pdf" if size <= MAX_DOC_FILE => {
+                // A PDF with (almost) no text layer is a scan: read its page images instead.
+                let t = pdf_text(path);
+                if t.as_deref().map(|s| s.trim().len()).unwrap_or(0) < 40 {
+                    match crate::ocr::pdf_text(path) {
+                        Some(ocr) => {
+                            meta["ocr"] = json!(true);
+                            Some(ocr)
+                        }
+                        None => t,
+                    }
+                } else {
+                    t
+                }
+            }
             "docx" if size <= MAX_DOC_FILE => docx_text(path),
             "pptx" if size <= MAX_DOC_FILE => {
                 let (t, slides) = pptx_text(path);
@@ -76,6 +90,13 @@ pub fn extract(path: &Path, ext: &str, size: u64) -> Extracted {
         if let Ok((w, h)) = image::image_dimensions(path) {
             meta["width"] = json!(w);
             meta["height"] = json!(h);
+        }
+    }
+    let mut text = text;
+    if kind == "image" && matches!(ext, "png" | "jpg" | "jpeg" | "bmp" | "webp" | "gif") && size <= 40 * 1024 * 1024 {
+        if let Some(t) = crate::ocr::image_text(path) {
+            meta["ocr"] = json!(true);
+            text = Some(t);
         }
     }
     let text = text.map(clean).filter(|t| !t.is_empty());

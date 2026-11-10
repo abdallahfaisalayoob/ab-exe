@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compose, sky, type Facts } from "./orion";
+import { compose, composeWrap, sky, type DayFacts, type Facts } from "./orion";
 
 const base: Facts = { address: "sir", classes: [], deadlines: [], doing: [], milestones: [], recurring: [], inbox: 0, captures: 0, files: 120, spent: 0, overBudget: [], currency: "PKR", hasMoney: false, lastBackup: null, weather: null };
 const at = (h: number, m = 0) => new Date(2026, 10, 9, h, m); // Monday 9 November 2026
@@ -42,5 +42,19 @@ describe("ORION briefing", () => {
     expect(b.status).toContain("weather via open-meteo.com");
     expect(quiet.status).toContain("nothing sent anywhere");
     expect(sky(95)).toBe("thunderstorms");
+  });
+  it("wraps up the day from what was actually finished, and never scolds a quiet one", () => {
+    const day: DayFacts = { address: "sir", finished: ["DB assignment", "Design PCB"], focusMinutes: 50, filesAdded: 3, captured: 0, spent: 450, currency: "PKR", hasMoney: true, carried: [{ title: "Lab report", due_at: "2026-11-09T17:00" }], tomorrowClasses: [{ name: "Computer Architecture", start_min: 600, room: "C-301" }, { name: "Communication Skills", start_min: 690, room: "" }], tomorrowDue: ["ML quiz"] };
+    const w = composeWrap(day, at(22, 30));
+    expect(w.greeting).toBe("Good night, sir.");
+    expect(w.done[0].text).toBe("You finished 2 things today: DB assignment, Design PCB.");
+    expect(w.done.map((l) => l.text)).toContain("50 minutes of focused work.");
+    expect(w.ahead[0].text).toBe("1 item moves to tomorrow: Lab report.");
+    expect(w.ahead[1].text).toBe("Tomorrow starts with Computer Architecture at 10:00 in C-301, 2 classes in all.");
+    expect(w.speech).toContain("Sleep well.");
+    const quiet = composeWrap({ ...day, finished: [], focusMinutes: 0, filesAdded: 0, hasMoney: false, carried: [], tomorrowClasses: [], tomorrowDue: [] }, at(18));
+    expect(quiet.greeting).toBe("That's the day, sir.");
+    expect(quiet.done[0].text).toMatch(/quiet day/);
+    expect(quiet.ahead[0].text).toBe("No classes tomorrow.");
   });
 });

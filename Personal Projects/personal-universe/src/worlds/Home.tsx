@@ -6,7 +6,7 @@ import { capture, openFile } from "../lib/actions";
 import { DAYS, MONTHS, ago, daysUntil, dow, fmtDate, hm, relDay, today, ymd } from "../lib/dates";
 import { monthlyFlow, monthsBack, netWorth, netWorthSeries, type Account, type Tx } from "../lib/finance";
 import { money, plural } from "../lib/format";
-import { useNow, useQ, useRows, useSetting } from "../lib/hooks";
+import { useCourseFocus, useNow, useQ, useRows, useSetting } from "../lib/hooks";
 import { computeInsights } from "../lib/insights";
 import { DEFAULT_RULES } from "../lib/workload";
 import { ask, useUI, World } from "../lib/store";
@@ -155,8 +155,9 @@ function DayArc({ now }: { now: Date }) {
 
 function Deadlines({ span }: { span: number }) {
   const set = useUI((s) => s.set);
-  const rows = useRows<any>("SELECT d.*, c.name course, c.color FROM deadlines d LEFT JOIN courses c ON c.id = d.course_id WHERE d.done = 0 ORDER BY d.due_at LIMIT ?", [span === 2 ? 8 : 5]);
-  if (!rows.length) return <Quiet text="Nothing with a date yet." action="Add a deadline" onClick={() => set({ quick: { type: "deadline" } })} />;
+  const [focus] = useCourseFocus();
+  const rows = useRows<any>("SELECT d.*, c.name course, c.color FROM deadlines d LEFT JOIN courses c ON c.id = d.course_id WHERE d.done = 0 AND (? IS NULL OR d.course_id = ?) ORDER BY d.due_at LIMIT ?", [focus?.id ?? null, focus?.id ?? null, span === 2 ? 8 : 5]);
+  if (!rows.length) return <Quiet text={focus ? `Nothing due for ${focus.name}.` : "Nothing with a date yet."} action="Add a deadline" onClick={() => set({ quick: { type: "deadline" } })} />;
   return (
     <div style={{ display: "grid", gridTemplateColumns: span === 2 ? "1fr 1fr" : "1fr", gap: "0 18px", margin: "0 -8px" }}>
       {rows.map((d) => {
@@ -187,7 +188,9 @@ function ProjectsW() {
 
 function Recent({ span }: { span: number }) {
   const go = useUI((s) => s.go);
-  const rows = useRows<any>("SELECT id, name, path, kind, MAX(COALESCE(opened_at, 0), imported_at) t, opened_at FROM files WHERE missing = 0 ORDER BY t DESC LIMIT ?", [span === 2 ? 8 : 4]);
+  const [focus] = useCourseFocus();
+  const rows = useRows<any>("SELECT id, name, path, kind, MAX(COALESCE(opened_at, 0), imported_at) t, opened_at FROM files WHERE missing = 0 AND (? IS NULL OR id IN (SELECT a_id FROM links WHERE a_type = 'file' AND b_type = 'course' AND b_id = ?)) ORDER BY t DESC LIMIT ?", [focus?.id ?? null, focus?.id ?? null, span === 2 ? 8 : 4]);
+  if (!rows.length && focus) return <p className="small faint">No files are linked to {focus.name} yet. Link them from the course workspace or the file inspector.</p>;
   if (!rows.length) return <Quiet text="Drop a folder anywhere in this window to begin your library." action="Import a folder" onClick={() => go("knowledge", { action: "import" })} />;
   return <div style={{ display: "grid", gridTemplateColumns: span === 2 ? "repeat(4, 1fr)" : "1fr 1fr", gap: 8 }}>{rows.map((f) => (
     <button key={f.id} className={"plate hover kind-" + f.kind} style={{ padding: 11, textAlign: "left", borderRadius: 12 }} onClick={() => go("knowledge", { action: "select", id: f.id })} onDoubleClick={() => openFile(f)} title={f.path}>

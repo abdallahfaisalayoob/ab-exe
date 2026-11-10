@@ -124,3 +124,13 @@ export async function checkReminders() {
 
 const GUESS: [RegExp, string][] = [[/lunch|dinner|breakfast|food|cafe|coffee|chai|pizza|burger|biryani|restaurant|snack/i, "Food"], [/uber|careem|indrive|bus|fuel|petrol|metro|taxi|fare|ride/i, "Transport"], [/grocer|mart|store/i, "Groceries"], [/fee|tuition|semester/i, "Tuition"], [/book|notes|print|photocopy|stationery/i, "Books & supplies"], [/rent|hostel/i, "Rent"], [/netflix|spotify|youtube|subscription|icloud/i, "Subscriptions"], [/jazz|zong|telenor|ufone|internet|wifi|package|load/i, "Mobile & internet"], [/medicine|doctor|pharmacy|clinic/i, "Health"], [/salary|pay/i, "Salary"], [/stipend|scholarship/i, "Stipend"], [/freelance|client|fiverr|upwork/i, "Freelance"]];
 export const guessCategory = (text: string) => GUESS.find(([re]) => re.test(text))?.[1] ?? "Uncategorised";
+
+/** Should closing the app show ORION's wrap-up first? */
+export function wantsWrap() {
+  const mode = setting<string>("orion.wrap", "evening"), h = new Date().getHours();
+  return useUI.getState().orion !== "wrap" && (mode === "always" || (mode === "evening" && (h >= 17 || h < 5)));
+}
+export function requestClose() {
+  if (wantsWrap()) useUI.setState({ orion: "wrap", palette: false, settings: false });
+  else void native.quit();
+}

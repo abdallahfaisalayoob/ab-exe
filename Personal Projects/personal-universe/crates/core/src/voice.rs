@@ -49,7 +49,7 @@ pub fn status(core: &Arc<Core>) -> Value {
 }
 
 /// Streams a URL to `dest`, reporting progress, and refuses the file unless its SHA-256 matches.
-fn fetch(core: &Core, url: &str, dest: &Path, sha: &str) -> Result<()> {
+pub(crate) fn fetch(_core: &Core, job: &std::sync::Mutex<VoiceJob>, url: &str, dest: &Path, sha: &str) -> Result<()> {
     let agent = ureq::AgentBuilder::new().timeout_connect(std::time::Duration::from_secs(20)).timeout_read(std::time::Duration::from_secs(60)).build();
     let resp = agent.get(url).call().map_err(|e| anyhow!("Download failed ({e}). Check your internet connection and try again."))?;
     let tmp = dest.with_extension("part");
@@ -62,7 +62,7 @@ fn fetch(core: &Core, url: &str, dest: &Path, sha: &str) -> Result<()> {
         if n == 0 { break; }
         out.write_all(&buf[..n])?;
         hasher.update(&buf[..n]);
-        core.voice.lock().unwrap().done += n as u64;
+        job.lock().unwrap().done += n as u64;
     }
     drop(out);
     let got = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>();
@@ -100,7 +100,7 @@ fn install_blocking(core: &Arc<Core>, v: &Voice) -> Result<()> {
     if !exe(core).is_file() {
         core.voice.lock().unwrap().label = "Speech engine".into();
         let archive = root.join(ENGINE.0);
-        fetch(core, &format!("{ENGINE_URL}{}", ENGINE.0), &archive, ENGINE.2)?;
+        fetch(core, &core.voice, &format!("{ENGINE_URL}{}", ENGINE.0), &archive, ENGINE.2)?;
         core.voice.lock().unwrap().label = "Unpacking".into();
         let engine = root.join("engine");
         let _ = std::fs::remove_dir_all(&engine);
@@ -110,8 +110,8 @@ fn install_blocking(core: &Arc<Core>, v: &Voice) -> Result<()> {
     }
     core.voice.lock().unwrap().label = v.label.into();
     let m = model(core, v.id);
-    fetch(core, &format!("{VOICE_URL}{}/{}.onnx.json", v.path, v.id), &m.with_extension("onnx.json"), v.sha_json)?;
-    fetch(core, &format!("{VOICE_URL}{}/{}.onnx", v.path, v.id), &m, v.sha)?;
+    fetch(core, &core.voice, &format!("{VOICE_URL}{}/{}.onnx.json", v.path, v.id), &m.with_extension("onnx.json"), v.sha_json)?;
+    fetch(core, &core.voice, &format!("{VOICE_URL}{}/{}.onnx", v.path, v.id), &m, v.sha)?;
     Ok(())
 }
 

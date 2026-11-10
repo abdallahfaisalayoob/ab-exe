@@ -28,7 +28,10 @@ interface UI {
   settings: boolean;
   handoff: HandoffRequest | null;
   quick: Quick | null;
-  orion: boolean;
+  orion: false | "brief" | "wrap";
+  /** Text handed to the command bar (by voice); `auto` runs the top command without a keypress. */
+  seed: { text: string; auto: boolean } | null;
+  listening: "off" | "recording" | "thinking";
   focus: { title: string; until: number; minutes: number } | null;
   ask: { title: string; value: string; resolve: (v: string | null) => void } | null;
   toasts: Toast[];
@@ -52,6 +55,8 @@ export const useUI = create<UI>((set, get) => ({
   quick: null,
   ask: null,
   orion: false,
+  seed: null,
+  listening: "off",
   focus: null,
   toasts: [],
   go: (world, intent) => set({ world, intent: intent ? { ...intent, world, n: seq++ } : null, palette: false, activity: false }),

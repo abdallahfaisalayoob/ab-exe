@@ -214,3 +214,39 @@ fn simultaneous_imports_all_complete() {
     dispatch(&core, "files.rescan", &json!({})).unwrap();
     dispatch(&core, "db.exec", &json!({ "sql": "INSERT INTO settings(key, value) VALUES('k', '1')" })).unwrap();
 }
+
+#[test]
+fn text_recognition() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/scan-notes.png");
+    if !pu_core::ocr::available() {
+        eprintln!("OCR engine not available on this machine — recognition test skipped");
+        assert!(pu_core::ocr::image_text(&fixture).is_none(), "without an engine nothing is invented");
+        return;
+    }
+    let text = pu_core::ocr::image_text(&fixture).expect("the fixture contains printed text");
+    eprintln!("OCR read: {}", text.replace('\n', " | "));
+    let low = text.to_lowercase();
+    assert!(low.contains("nyquist") && low.contains("stability"), "{text}");
+
+    // A scanned PDF has no text layer; its page image is read instead.
+    let scanned = pu_core::ocr::pdf_text(&fixture.with_file_name("scanned.pdf")).expect("scanned PDF is readable");
+    assert!(scanned.to_lowercase().contains("nyquist"), "{scanned}");
+
+    // End to end: a screenshot becomes searchable by the words inside it.
+    let lib = tmp("ocr-lib");
+    std::fs::copy(&fixture, lib.join("IMG_2041.png")).unwrap();
+    let core = Core::open(&tmp("ocr-data")).unwrap();
+    dispatch(&core, "files.import", &json!({ "paths": [lib.to_string_lossy()] })).unwrap();
+    wait(&core);
+    let hits = q(&core, "SELECT f.name FROM files_fts JOIN files f ON f.id = files_fts.rowid WHERE files_fts MATCH 'nyquist'", json!([]));
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0]["name"], "IMG_2041.png");
+}
+
+#[test]
+fn scanned_pdf_page_images_are_found() {
+    let pdf = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/scanned.pdf");
+    let pages = pu_core::ocr::pdf_jpegs(&pdf);
+    assert_eq!(pages.len(), 1, "one page image in the fixture");
+    assert_eq!(&pages[0][..2], &[0xFF, 0xD8], "it is a JPEG");
+}
