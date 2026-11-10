@@ -27,7 +27,8 @@ No accounts. No cloud. No API keys. No telemetry. Everything lives in one SQLite
 
 **O.R.I.O.N.** (*Offline, Rather Intelligent, Organisational Navigator*) wakes with the app: a short boot
 sequence, then a spoken briefing — classes ahead, what is due, money, and the one thing most worth doing
-today — with a one-click focus timer. Speech uses a voice installed on your PC. Try `orion joke` or
+today — with a one-click focus timer. Speech is generated on your PC: by a Windows voice out of the box, or by
+an optional **natural voice** (the Piper neural engine, a one-time ~85 MB download from Settings, then offline). Try `orion joke` or
 `orion focus 45` in the command bar. Greeting frequency, voice and how it addresses you are in Settings.
 
 Everywhere: **Ctrl K** command bar (search + structured commands such as `quiz ML friday 3pm`,
@@ -50,7 +51,7 @@ npm install
 npm run build
 ```
 
-3. Run the installer produced at `target\release\bundle\nsis\Personal Universe_0.1.0_x64-setup.exe`.
+3. Run the installer produced at `target\release\bundle\nsis\Personal Universe_0.2.0_x64-setup.exe`.
    It adds a Start-menu entry and a desktop shortcut and installs per-user (no admin rights).
 
 **Option B — let GitHub build it**: the workflow in `.github/workflows/personal-universe.yml`
@@ -106,6 +107,7 @@ crates/core/        pu-core — everything that touches disk. No Tauri dependenc
   backup.rs         VACUUM INTO snapshots, validated restore, JSON export
   handoff.rs        AI handoff packaging + privacy ledger
   serve.rs          previews & cached thumbnails for indexed files only
+  voice.rs          optional local neural speech (Piper): verified download, offline synthesis
   bin/pu-dev.rs     development bridge (not shipped)
 src-tauri/          the desktop shell: one command (`pu`), the `pu://` protocol, OS plugins
 src/
@@ -132,14 +134,16 @@ Design decisions worth knowing:
 
 ## Privacy
 
-Nothing is transmitted by the application unless you switch it on. There are two outward paths. The
+Nothing is transmitted by the application unless you switch it on. There are three outward paths. Installing
+ORION's natural voice downloads the Piper engine and one voice model (from github.com/rhasspy/piper and
+huggingface.co/rhasspy/piper-voices, each file checked against a pinned SHA-256); nothing of yours is sent. The
 optional weather line in ORION's briefing (off by default) sends your city's coordinates — nothing
 else — to open-meteo.com. The other is an AI handoff: the app copies the
 chosen files and prompt into a folder, puts the prompt on the clipboard and — after you click — opens
 claude.ai or chatgpt.com in your browser. You paste and attach. Each handoff, and switching weather on, is recorded in
 Archive → Privacy ledger. The UI never claims a file was uploaded.
 
-## Known limits (v0.1)
+## Known limits (v0.2)
 
 * Scanned PDFs and images are indexed by name and metadata only (no OCR). Legacy `.doc`/`.ppt` are not
   text-extracted; `.docx`/`.pptx`/`.xlsx`/`.xls` are.

@@ -10,6 +10,7 @@ pub mod grid;
 pub mod handoff;
 pub mod indexer;
 pub mod serve;
+pub mod voice;
 
 use anyhow::{anyhow, Result};
 use rusqlite::Connection;
@@ -25,6 +26,7 @@ pub struct Core {
     pub jobs: Mutex<Vec<indexer::Job>>,
     pub job_seq: AtomicU64,
     pub index_turn: Mutex<()>,
+    pub voice: Mutex<voice::VoiceJob>,
 }
 
 impl Core {
@@ -36,7 +38,7 @@ impl Core {
         let db_path = data_dir.join("universe.db");
         let mut conn = db::open(&db_path)?;
         db::migrate(&mut conn)?;
-        let core = Arc::new(Core { data_dir: data_dir.to_path_buf(), db_path, conn: Mutex::new(conn), jobs: Mutex::new(Vec::new()), job_seq: AtomicU64::new(1), index_turn: Mutex::new(()) });
+        let core = Arc::new(Core { data_dir: data_dir.to_path_buf(), db_path, conn: Mutex::new(conn), jobs: Mutex::new(Vec::new()), job_seq: AtomicU64::new(1), index_turn: Mutex::new(()), voice: Mutex::new(voice::VoiceJob::default()) });
         // A quiet safety net: one automatic backup per day, pruned to the latest ten.
         let _ = backup::auto(&core);
         Ok(core)
@@ -95,6 +97,11 @@ pub fn dispatch(core: &Arc<Core>, cmd: &str, args: &Value) -> Result<Value> {
         "backup.export" => backup::export_json(core),
 
         "handoff.prepare" => handoff::prepare(core, args),
+
+        "voice.status" => Ok(voice::status(core)),
+        "voice.install" => voice::install(core, s(args, "voice")?),
+        "voice.remove" => voice::remove(core),
+        "voice.speak" => voice::speak(core, s(args, "voice")?, s(args, "text")?),
 
         "app.info" => {
             let size = std::fs::metadata(&core.db_path).map(|m| m.len()).unwrap_or(0);

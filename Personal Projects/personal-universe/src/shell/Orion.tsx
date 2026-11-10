@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { log, native } from "../lib/backend";
 import { useNow, useQ, useSetting } from "../lib/hooks";
-import { canSpeak, compose, gather, getWeather, hush, speak } from "../lib/orion";
+import { canSpeak, compose, gather, getWeather, hush, isSpeaking, speak } from "../lib/orion";
 import { toast, useUI } from "../lib/store";
 import { Icon } from "../ui/Icons";
 
@@ -65,8 +65,8 @@ export function Orion() {
   useEffect(() => { if (!b) return; const t = setInterval(() => setShown((n) => { if (n >= b.status.length) { clearInterval(t); setTimeout(() => setStage(1), 380); return n; } return n + 1; }), 230); return () => clearInterval(t); }, [b]);
   useEffect(() => {
     if (stage !== 1 || !b) return;
-    speak(b.speech);
-    const t = setInterval(() => setTalking(canSpeak() && speechSynthesis.speaking), 200);
+    void speak(b.speech);
+    const t = setInterval(() => setTalking(isSpeaking()), 200);
     return () => { clearInterval(t); };
   }, [stage, b]);
   useEffect(() => {

@@ -2,7 +2,7 @@
 // The launch briefing. `compose` is a pure function over facts gathered from the local
 // database, so every sentence ORION says can be traced to a row you entered. The only
 // optional online ingredient is the weather, which is off until you switch it on.
-import { q } from "./backend";
+import { call, fileUrl, q } from "./backend";
 import { setting, useSettings } from "./hooks";
 import { DAYS, MONTHS, daysUntil, dow, hm, relDay } from "./dates";
 import { byCategory, convert, type Account, type Tx } from "./finance";
@@ -149,22 +149,53 @@ export async function getWeather(): Promise<Weather | null> {
   }
 }
 
-// ── Voice: only voices installed on this computer are used, so speech stays offline ──
-let voice: SpeechSynthesisVoice | null | undefined;
+// ── Voice ────────────────────────────────────────────────────────────────────
+// Two engines, both offline. The natural voice (a neural model installed from Settings) is used
+// when present; otherwise a voice already installed in Windows speaks.
+let sapi: SpeechSynthesisVoice | null | undefined;
+let audio: HTMLAudioElement | null = null;
+let turn = 0;
 function pickVoice() {
-  if (voice !== undefined || !("speechSynthesis" in window)) return voice ?? null;
+  if (sapi !== undefined || !("speechSynthesis" in window)) return sapi ?? null;
   const all = speechSynthesis.getVoices().filter((v) => v.localService && v.lang.startsWith("en"));
   if (!all.length) return null;
-  voice = all.find((v) => /George|Daniel|Ryan|Arthur/i.test(v.name)) ?? all.find((v) => v.lang === "en-GB") ?? all.find((v) => /David|Mark|Guy/i.test(v.name)) ?? all[0];
-  return voice;
+  sapi = all.find((v) => /Natural/i.test(v.name)) ?? all.find((v) => /George|Daniel|Ryan|Arthur/i.test(v.name)) ?? all.find((v) => v.lang === "en-GB") ?? all.find((v) => /David|Mark|Guy/i.test(v.name)) ?? all[0];
+  return sapi;
 }
-export const canSpeak = () => "speechSynthesis" in window;
-export function speak(text: string) {
-  if (!canSpeak() || !setting("orion.voice", true)) return;
-  const go = () => { const v = pickVoice(); if (!v) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.replace(/[“”]/g, "")); u.voice = v; u.rate = 1.04; u.pitch = 0.92; speechSynthesis.speak(u); };
+const natural = () => (setting("orion.natural", false) ? setting<string | null>("orion.naturalVoice", null) : null);
+export const canSpeak = () => !!natural() || "speechSynthesis" in window;
+export const isSpeaking = () => (audio != null && !audio.paused && !audio.ended) || ("speechSynthesis" in window && speechSynthesis.speaking);
+export function hush() { turn++; if (audio) { audio.pause(); audio = null; } if ("speechSynthesis" in window) speechSynthesis.cancel(); }
+
+function speakSystem(text: string) {
+  if (!("speechSynthesis" in window)) return;
+  const go = () => { const v = pickVoice(); if (!v) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.replace(/[“”]/g, "")); u.voice = v; u.rate = 1.0; u.pitch = 0.95; speechSynthesis.speak(u); };
   if (speechSynthesis.getVoices().length) go(); else { speechSynthesis.onvoiceschanged = () => { speechSynthesis.onvoiceschanged = null; go(); }; }
 }
-export const hush = () => { if (canSpeak()) speechSynthesis.cancel(); };
+function play(path: string, mine: number) {
+  return new Promise<void>((resolve, reject) => {
+    if (mine !== turn) return resolve();
+    const a = new Audio(fileUrl(path));
+    audio = a;
+    a.onended = () => resolve();
+    a.onerror = () => reject(new Error("audio"));
+    a.play().catch(reject);
+  });
+}
+/** Speaks with the best voice available. The opening sentence is synthesised first so ORION answers at once. */
+export async function speak(text: string, voice = natural()) {
+  if (!setting("orion.voice", true)) return;
+  hush();
+  if (!voice) return speakSystem(text);
+  const mine = turn, cut = text.search(/[.?!]\s/);
+  const parts = cut > 0 && text.length > 90 ? [text.slice(0, cut + 1), text.slice(cut + 2)] : [text];
+  try {
+    const clips = parts.map((t) => call<{ path: string }>("voice.speak", { voice, text: t }));
+    for (const c of clips) { const { path } = await c; if (mine !== turn) return; await play(path, mine); }
+  } catch {
+    if (mine === turn) speakSystem(text); // never leave the user in silence because a file went missing
+  }
+}
 
 export const JOKES = [
   "Why do electrical engineers make poor gardeners? They keep grounding everything.",
