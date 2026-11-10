@@ -25,7 +25,7 @@ jobs:
           workspaces: "Personal Projects/personal-universe"
       - run: npm ci
       - run: npm test
-      - run: cargo test -p pu-core
+      - run: cargo test -p pu-core -- --nocapture
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:
