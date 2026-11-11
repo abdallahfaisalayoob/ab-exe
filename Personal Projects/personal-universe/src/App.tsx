@@ -11,6 +11,7 @@ import { ActivityCenter, Ask, DropZone, Settings, Toasts } from "./shell/Overlay
 import { Handoff } from "./shell/Handoff";
 import { QuickAdd } from "./shell/QuickAdd";
 import { FocusChip, Orion } from "./shell/Orion";
+import { StudyChip, StudyPanel } from "./shell/Study";
 import Home from "./worlds/Home";
 
 const Knowledge = lazy(() => import("./worlds/Knowledge"));
@@ -73,6 +74,7 @@ function TopBar() {
           </span>
         )}
         {focus && <span className="chip tint" style={{ "--c": focus.color, height: 26 } as any} title="The app is focused on this course"><Icon name="target" size={12} /><span className="truncate" style={{ maxWidth: 150 }}>{focus.name}</span><button onClick={() => setFocus(null)} aria-label="Leave course focus"><Icon name="x" size={10} /></button></span>}
+        <StudyChip />
         <FocusChip />
         <button className={"icon-btn" + (listening !== "off" ? " on" : "")} onClick={() => (listening === "recording" ? stopListening() : startListening())} title="Talk to ORION — hold Ctrl + Space, or click to start and stop" aria-label="Talk to ORION"><Icon name="mic" size={17} className={listening === "thinking" ? "pulse" : ""} /></button>
         <button className="icon-btn" onClick={() => set({ orion: "brief" })} title="ORION briefing" aria-label="ORION briefing"><Icon name="orbit" size={17} /></button>
@@ -166,6 +168,7 @@ export default function App() {
       else if (mod && e.shiftKey && e.key.toLowerCase() === "v") { e.preventDefault(); void captureClipboard(); }
       else if (mod && e.key.toLowerCase() === "d") { e.preventDefault(); set({ quick: { type: "deadline" } }); }
       else if (mod && e.key.toLowerCase() === "e") { e.preventDefault(); set({ quick: { type: "tx" } }); }
+      else if (mod && e.key.toLowerCase() === "p") { e.preventDefault(); set({ quick: { type: "study" } }); }
       else if (mod && e.code === "Space") { e.preventDefault(); if (!e.repeat) void startListening(); }
       else if (e.key === "F11") { e.preventDefault(); void native.win("fullscreen"); }
       else if (e.key === "Escape") set({ palette: false, activity: false });
@@ -201,6 +204,7 @@ export default function App() {
       {ask && <Ask />}
       {orion && <Orion />}
       <ListeningPill />
+      {loaded && <StudyPanel />}
       <DropZone />
       <Toasts />
     </div>

@@ -6,7 +6,7 @@ use anyhow::{anyhow, Result};
 use serde_json::{json, Map, Value};
 use std::sync::Arc;
 
-fn stamp() -> String {
+pub(crate) fn stamp() -> String {
     chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string()
 }
 
@@ -29,7 +29,7 @@ pub fn list(core: &Arc<Core>) -> Result<Value> {
         let md = e.metadata()?;
         let modified = md.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_millis() as i64).unwrap_or(0);
         out.push(json!({ "name": name, "size": md.len(), "modified": modified, "path": e.path().to_string_lossy(),
-                         "auto": name.contains("_auto"), "safety": name.contains("_before-restore") }));
+                         "auto": name.contains("_auto"), "safety": name.contains("_before-restore"), "upgrade": name.contains("_before-upgrade") }));
     }
     out.sort_by_key(|v| -v["modified"].as_i64().unwrap_or(0));
     Ok(Value::Array(out))

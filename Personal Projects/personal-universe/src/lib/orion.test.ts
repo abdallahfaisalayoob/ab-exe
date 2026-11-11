@@ -32,6 +32,11 @@ describe("ORION briefing", () => {
     expect(speech).toContain("1 item past due: Lab report.");
     expect(speech).toContain("If you do one thing today, sir: Lab report.");
   });
+  it("mentions study planned for later today", () => {
+    const b = compose({ ...base, study: [{ start_min: 840, subjects: "Machine Learning, Database Systems", minutes: 150 }] }, at(9));
+    expect(b.lines.find((l) => l.icon === "book")!.text).toBe("Study planned at 14:00: Machine Learning, Database Systems, 2.5 hours.");
+    expect(compose({ ...base, study: [{ start_min: 480, subjects: "ML", minutes: 60 }] }, at(12)).lines.some((l) => l.icon === "book")).toBe(false);
+  });
   it("reports money and weather only when they exist, and never invents them", () => {
     const quiet = compose(base, at(8));
     expect(quiet.lines.some((l) => l.icon === "wallet")).toBe(false);

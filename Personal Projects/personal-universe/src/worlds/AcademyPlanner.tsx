@@ -22,7 +22,6 @@ export function Planner() {
   const sessions = useRows<any>("SELECT s.*, c.name course, d.title deadline FROM study_sessions s LEFT JOIN courses c ON c.id = s.course_id LEFT JOIN deadlines d ON d.id = s.deadline_id WHERE s.date >= ? ORDER BY s.date, s.start_min", [ymd(weekStart(new Date()))]);
   const [moves, setMoves] = useState<Record<number, string>>({});
   const [week, setWeek] = useState(() => ymd(weekStart(new Date())));
-  const [plan, setPlan] = useState<any>(null);
 
   const now = useMemo(() => new Date(), []);
   const sim = useMemo(() => real.map((d) => (moves[d.id] ? { ...d, due_at: moves[d.id] } : d)), [real, moves]);
@@ -87,13 +86,13 @@ export function Planner() {
 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 32 }}>
         <div className="col gap3">
-          <div className="row between"><span className="label">Free study blocks · week of {fmtDate(sel.start)}</span><span className="small faint">{sel.classHours.toFixed(1)}h of classes · click a block to plan a session</span></div>
+          <div className="row between"><span className="label">Free study blocks · week of {fmtDate(sel.start)}</span><span className="small faint">{sel.classHours.toFixed(1)}h of classes · click a block to plan study there</span></div>
           <div className="plate" style={{ padding: 8 }}>
             {selDays.map((d) => { const blocks = freeBlocks(d, slots, sessions, r); const mine = sessions.filter((s: any) => s.date === ymd(d)); return (
               <div key={ymd(d)} className="row" style={{ padding: "7px 8px", alignItems: "flex-start", gap: 12 }}>
                 <span className="small dim" style={{ width: 62, paddingTop: 3 }}>{fmtDate(d, "day")}</span>
                 <div className="row wrap gap1 grow">
-                  {blocks.map((b) => <button key={b.start} className="chip" onClick={() => setPlan({ date: ymd(d), start: hm(b.start), end: hm(Math.min(b.end, b.start + 120)), max: b.end, deadline_id: "" })}>{hm(b.start)}–{hm(b.end)} <span className="faint">{((b.end - b.start) / 60).toFixed(1)}h</span></button>)}
+                  {blocks.map((b) => <button key={b.start} className="chip" onClick={() => useUI.getState().set({ quick: { type: "study", init: { date: ymd(d), start: hm(b.start) } } })}>{hm(b.start)}–{hm(b.end)} <span className="faint">{((b.end - b.start) / 60).toFixed(1)}h</span></button>)}
                   {mine.map((s: any) => <span key={s.id} className="chip tint">Study {hm(s.start_min)}–{hm(s.end_min)}{s.deadline ? ` · ${s.deadline}` : s.course ? ` · ${s.course}` : ""}<button onClick={() => run("DELETE FROM study_sessions WHERE id = ?", [s.id])} aria-label="Remove session"><Icon name="x" size={10} /></button></span>)}
                   {!blocks.length && !mine.length && <span className="small faint">No open block of an hour or more.</span>}
                 </div>
@@ -117,16 +116,7 @@ export function Planner() {
         </div>
       </div>
       {drag.ghost}
-      {plan && <Modal title="Plan a study session" sub={fmtDate(plan.date, "long")} onClose={() => setPlan(null)} foot={<><button className="btn ghost" onClick={() => setPlan(null)}>Cancel</button><button className="btn primary" onClick={() => attempt(async () => {
-        const s = parseHm(plan.start), e = parseHm(plan.end);
-        if (e <= s) throw new Error("The session must end after it starts.");
-        const d = real.find((x) => String(x.id) === String(plan.deadline_id));
-        await run("INSERT INTO study_sessions(course_id, deadline_id, date, start_min, end_min) VALUES(?,?,?,?,?)", [d?.course_id ?? null, d?.id ?? null, plan.date, s, e]);
-        setPlan(null);
-      })}>Add session</button></>}>
-        <div className="grid2"><Field label="From"><input className="input" type="time" value={plan.start} onChange={(e) => setPlan({ ...plan, start: e.target.value })} /></Field><Field label="Until"><input className="input" type="time" value={plan.end} onChange={(e) => setPlan({ ...plan, end: e.target.value })} /></Field></div>
-        <Field label="Working towards"><select className="select" value={plan.deadline_id} onChange={(e) => setPlan({ ...plan, deadline_id: e.target.value })}><option value="">General study</option>{real.map((d) => <option key={d.id} value={d.id}>{d.title} — {fmtDate(d.due_at)}</option>)}</select></Field>
-      </Modal>}
+
     </div>
   );
 }

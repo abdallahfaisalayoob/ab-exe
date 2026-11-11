@@ -243,3 +243,6 @@ mark { background: color-mix(in srgb, var(--hue) 28%, transparent); color: inher
 .orion-inner { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(40px, 6vw, 96px); align-items: center; padding: 40px 6vw 70px; max-width: 1320px; width: 100%; max-height: 100%; overflow: auto; }
 @keyframes orion-breathe { from { transform: scale(.94); opacity: .82; } to { transform: scale(1.06); opacity: 1; } }
 @keyframes orion-talk { from { transform: scale(.9); } to { transform: scale(1.22); } }
+
+/* Study session panel */
+.study-panel { position: fixed; top: calc(var(--topbar-h) + 8px); right: 16px; width: 390px; z-index: 90; background: linear-gradient(var(--panel), var(--panel)), var(--bg-2); border: 1px solid var(--line-2); border-top: 2px solid var(--c, var(--hue)); border-radius: 18px; padding: 16px 18px 14px; box-shadow: var(--shadow), 0 0 80px -30px var(--c, var(--hue)); animation: rise var(--med) var(--ease) both; display: flex; flex-direction: column; }

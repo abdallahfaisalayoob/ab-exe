@@ -22,6 +22,8 @@ export interface Facts {
   spent: number; overBudget: string[]; currency: string; hasMoney: boolean;
   lastBackup: number | null;
   weather: Weather | null;
+  /** Study planned for today and not yet started. */
+  study?: { start_min: number; subjects: string; minutes: number }[];
 }
 export interface Line { icon: string; text: string; world?: World; tab?: string; tone?: "warn" | "good" }
 export interface Mission { title: string; why: string; world: World; tab?: string }
@@ -58,6 +60,10 @@ export function compose(f: Facts, now: Date, seed = now.getDate() + now.getHours
     lines.push({ icon: "calendar", text: t, world: "academy", tab: "week", tone: next && next.start_min - nowMin <= 20 ? "warn" : undefined });
     say.push(t);
   }
+
+  // Study planned for later today
+  const plan = (f.study ?? []).find((p) => p.start_min >= nowMin - 20);
+  if (plan) { const t = `Study planned at ${hm(plan.start_min)}: ${plan.subjects}, ${Math.round(plan.minutes / 6) / 10} hours.`; lines.push({ icon: "book", text: t, world: "academy", tab: "planner" }); say.push(t); }
 
   // Deadlines
   const open = f.deadlines.map((d) => ({ ...d, n: daysUntil(d.due_at, now) })).sort((a, b) => a.due_at.localeCompare(b.due_at));
@@ -102,7 +108,7 @@ export function compose(f: Facts, now: Date, seed = now.getDate() + now.getHours
 
 export async function gather(now = new Date(), weather: Weather | null = null): Promise<Facts> {
   const base = setting("currency", "PKR"), rate = setting("usdRate", 0), month = monthKey(now);
-  const [classes, deadlines, doing, milestones, recurring, counts, accounts, txs, budgets, backups] = await Promise.all([
+  const [classes, deadlines, doing, milestones, recurring, counts, accounts, txs, budgets, study, backups] = await Promise.all([
     q<any>("SELECT c.name, s.start_min, s.end_min, s.room FROM class_slots s JOIN courses c ON c.id = s.course_id WHERE s.day = ? AND c.archived = 0 ORDER BY s.start_min", [dow(now)]),
     q<any>("SELECT id, title, kind, due_at FROM deadlines WHERE done = 0 AND kind != 'event' ORDER BY due_at LIMIT 60"),
     q<any>("SELECT t.title, p.name project FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.status = 'doing' AND p.status = 'active' ORDER BY t.priority DESC LIMIT 8"),
@@ -111,6 +117,7 @@ export async function gather(now = new Date(), weather: Weather | null = null): 
     q<any>("SELECT (SELECT COUNT(*) FROM files) files, (SELECT COUNT(*) FROM files WHERE inbox_state = 'new') inbox, (SELECT COUNT(*) FROM notes WHERE owner_type = 'capture' AND state = 'open') captures"),
     q<Account>("SELECT * FROM accounts"), q<Tx>("SELECT * FROM transactions WHERE date >= ?", [month + "-01"]),
     q<any>("SELECT * FROM budgets"),
+    q<any>("SELECT p.start_min, (SELECT GROUP_CONCAT(COALESCE(c.name, 'general study'), ', ') FROM study_sessions s LEFT JOIN courses c ON c.id = s.course_id WHERE s.plan_id = p.id) subjects, (SELECT SUM(minutes) FROM study_sessions s WHERE s.plan_id = p.id) minutes FROM study_plans p WHERE p.date = ? AND p.state = 'planned' ORDER BY p.start_min", [ymd(now)]).catch(() => []),
     import("./backend").then((b) => b.call<any[]>("backup.list")).catch(() => []),
   ]);
   const cats = byCategory(accounts, txs, base, rate, month);
@@ -119,7 +126,7 @@ export async function gather(now = new Date(), weather: Weather | null = null): 
     inbox: counts[0].inbox, captures: counts[0].captures, files: counts[0].files,
     spent: cats.reduce((s, c) => s + c.total, 0), currency: base, hasMoney: accounts.length > 0,
     overBudget: budgets.filter((b: any) => (cats.find((c) => c.category === b.category)?.total ?? 0) > convert(b.monthly_limit, b.currency, base, rate)).map((b: any) => b.category),
-    lastBackup: backups[0]?.modified ?? null, weather,
+    lastBackup: backups[0]?.modified ?? null, weather, study,
   };
 }
 

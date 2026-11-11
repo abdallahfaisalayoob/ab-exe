@@ -8,6 +8,7 @@ import { PALETTE } from "../lib/format";
 import { useRows } from "../lib/hooks";
 import { attempt, toast, useUI } from "../lib/store";
 import { Field, Modal, Seg } from "../ui/kit";
+import { StudyDialog } from "./Study";
 
 export const DEADLINE_KINDS = ["assignment", "quiz", "exam", "presentation", "lab", "milestone", "reminder", "event"];
 
@@ -18,6 +19,7 @@ export function QuickAdd() {
   if (quick.type === "tx") return <TxForm init={quick.init} close={close} />;
   if (quick.type === "project") return <ProjectForm init={quick.init} close={close} />;
   if (quick.type === "course") return <CourseForm init={quick.init} close={close} />;
+  if (quick.type === "study") return <StudyDialog init={quick.init} close={close} />;
   return <CaptureForm close={close} />;
 }
 

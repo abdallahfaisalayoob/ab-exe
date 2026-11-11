@@ -31,6 +31,11 @@ today — with a one-click focus timer. Speech is generated on your PC: by a Win
 an optional **natural voice** (the Piper neural engine, a one-time ~85 MB download from Settings, then offline). Try `orion joke` or
 `orion focus 45` in the command bar. Greeting frequency, voice and how it addresses you are in Settings.
 
+**Study sessions.** Plan one sitting of several subjects — minutes and what you'll do in each — then start
+now or schedule it (Ctrl + P, the planner's free blocks, or “plan my next 3 hours”). ORION fills it from
+your nearest deadlines if you like, lays it out around your classes with breaks (50/10, Pomodoro, deep work),
+runs the clock, announces each switch and break, survives a restart, and records what you got through.
+
 **Talk to it.** Hold **Ctrl + Space** and speak — “add a quiz for machine learning on Friday at 3 pm”,
 “spent 450 on lunch”, “focus on operating systems”, “good night”. Speech is recognised on your PC by Whisper
 (a one-time ~60 MB model download from Settings); audio is never stored. **Evening wrap-up**: closing the app
@@ -59,7 +64,7 @@ npm install
 npm run build
 ```
 
-3. Run the installer produced at `target\release\bundle\nsis\Personal Universe_0.3.0_x64-setup.exe`.
+3. Run the installer produced at `target\release\bundle\nsis\Personal Universe_0.3.1_x64-setup.exe`.
    It adds a Start-menu entry and a desktop shortcut and installs per-user (no admin rights).
 
 **Option B — let GitHub build it**: the workflow in `.github/workflows/personal-universe.yml`
@@ -95,7 +100,7 @@ npm test
 npm run test:core
 ```
 
-* `npm test` — 41 unit tests: the ORION briefing and wrap-up, spoken-command normalisation, timetable parsing (list, day×time grid, room×time grid with one sheet per
+* `npm test` — 62 unit tests: study-plan layout and suggestions, the ORION briefing and wrap-up, spoken-command normalisation, timetable parsing (list, day×time grid, room×time grid with one sheet per
   day, time×day grid), conflict detection, natural-language dates, command grammar, finance maths
   (balances, net worth, transfers, projection, statement import), workload model, engineering helpers.
 * `npm run test:core` — Rust integration tests against a real database: recursive import, DOCX/XLSX/CSV

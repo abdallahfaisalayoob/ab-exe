@@ -250,3 +250,39 @@ fn scanned_pdf_page_images_are_found() {
     assert_eq!(pages.len(), 1, "one page image in the fixture");
     assert_eq!(&pages[0][..2], &[0xFF, 0xD8], "it is a JPEG");
 }
+
+#[test]
+fn upgrade_from_v1_keeps_data_and_snapshots_first() {
+    let data = tmp("upgrade");
+    {
+        let conn = rusqlite::Connection::open(data.join("universe.db")).unwrap();
+        conn.execute_batch(include_str!("../src/schema.sql")).unwrap();
+        conn.pragma_update(None, "user_version", 1).unwrap();
+        conn.execute("INSERT INTO courses(name, created_at) VALUES('Machine Learning', 0)", []).unwrap();
+        conn.execute("INSERT INTO study_sessions(course_id, date, start_min, end_min, note) VALUES(1, '2026-11-11', 600, 660, 'old')", []).unwrap();
+    }
+    let core = Core::open(&data).unwrap();
+    let rows = q(&core, "SELECT course_id, note, plan_id, seq FROM study_sessions", json!([]));
+    assert_eq!(rows.len(), 1, "existing study sessions survive");
+    assert_eq!(rows[0]["note"], "old");
+    assert_eq!(rows[0]["plan_id"], Value::Null);
+    assert_eq!(q(&core, "PRAGMA user_version", json!([]))[0]["user_version"], 2);
+    let snaps = dispatch(&core, "backup.list", &json!({})).unwrap();
+    assert!(snaps.as_array().unwrap().iter().any(|b| b["upgrade"] == true), "a snapshot was taken before upgrading");
+
+    // A plan owns its segments: removing the plan removes them.
+    dispatch(&core, "db.batch", &json!({ "stmts": [
+        { "sql": "INSERT INTO study_plans(date, start_min, end_min, created_at) VALUES('2026-11-11', 840, 1020, 0)" },
+        { "sql": "INSERT INTO study_sessions(course_id, date, start_min, end_min, note, plan_id, seq) VALUES(1, '2026-11-11', 840, 930, 'Lecture 4 + problems', 1, 0)" },
+    ]})).unwrap();
+    dispatch(&core, "db.exec", &json!({ "sql": "DELETE FROM study_plans WHERE id = 1" })).unwrap();
+    assert_eq!(q(&core, "SELECT id FROM study_sessions", json!([])).len(), 1);
+
+    // Opening an up-to-date database does not snapshot again.
+    drop(core);
+    let before = std::fs::read_dir(data.join("backups")).unwrap().count();
+    let _core = Core::open(&data).unwrap();
+    let after = std::fs::read_dir(data.join("backups")).unwrap().filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().contains("before-upgrade")).count();
+    assert!(after <= before);
+    assert_eq!(after, 1);
+}

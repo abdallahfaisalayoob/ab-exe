@@ -17,7 +17,7 @@ export interface Intent { world: World; tab?: string; id?: number; query?: strin
 export interface HandoffRequest { fileIds: number[]; promptId?: number }
 
 /** Global quick-create dialogs, reachable from any world and from the command palette. */
-export type Quick = { type: "deadline" | "tx" | "project" | "capture" | "course"; init?: any };
+export type Quick = { type: "deadline" | "tx" | "project" | "capture" | "course" | "study"; init?: any };
 
 interface UI {
   world: World;

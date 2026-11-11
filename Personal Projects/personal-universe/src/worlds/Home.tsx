@@ -12,6 +12,7 @@ import { DEFAULT_RULES } from "../lib/workload";
 import { ask, useUI, World } from "../lib/store";
 import { Icon, KIND_ICON } from "../ui/Icons";
 import { Spark } from "../ui/charts";
+import { TodayStudy } from "../shell/Study";
 import { Check, Empty, Menu, MenuItem, Ring, useDrag } from "../ui/kit";
 
 type WidgetId = "deadlines" | "projects" | "recent" | "finance" | "goals" | "insights" | "capture" | "spaces";
@@ -149,6 +150,7 @@ function DayArc({ now }: { now: Date }) {
         <p className="dim" style={{ maxWidth: 420 }}>This arc is your day. <button className="hue" onClick={() => go("academy", { tab: "week", action: "import" })}>Import your timetable</button> and your classes, study sessions and deadlines will appear along it.</p>
       )}
       {due.length > 0 && <div className="col gap1">{due.map((d: any) => <div key={d.id} className="row small"><span className="dot" style={{ "--c": d.color ?? "var(--warn)" } as any} /><span className="grow truncate">{d.title}</span><span className="faint mono">{d.due_at.slice(11)}</span></div>)}</div>}
+      <TodayStudy />
     </div>
   );
 }

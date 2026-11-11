@@ -51,6 +51,7 @@ export function Palette() {
 
   const actions: Item[] = useMemo(() => [
     { key: "a-orion", group: "Actions", title: "ORION, brief me", sub: "Today's classes, deadlines, money and your one mission", icon: "orbit", color: "var(--hue-home)", run: () => set({ palette: false, orion: "brief" }) },
+    { key: "a-study", group: "Actions", title: "Plan a study session", sub: "Several subjects, what you'll do in each, breaks — start now or later", icon: "book", color: "var(--hue-academy)", hint: "Ctrl P", run: () => set({ palette: false, quick: { type: "study" } }) },
     { key: "a-focus", group: "Actions", title: "Start a 25-minute focus block", sub: "ORION keeps time and tells you when it is done", icon: "clock", run: () => { close(); startFocus("Focus block", 25); } },
     { key: "a-deadline", group: "Actions", title: "New deadline", sub: "Assignment, quiz, exam, reminder…", icon: "flag", hint: "Ctrl D", run: () => set({ palette: false, quick: { type: "deadline" } }) },
     { key: "a-tx", group: "Actions", title: "New transaction", sub: "Record income, an expense or a transfer", icon: "wallet", hint: "Ctrl E", run: () => set({ palette: false, quick: { type: "tx" } }) },
@@ -85,6 +86,14 @@ export function Palette() {
         else items.push({ key: "o-b", group: "ORION", title: "Brief me", sub: "Try also: “orion joke”, “orion focus 45”, “orion who are you”", icon: "orbit", color: "var(--hue-home)", run: () => set({ palette: false, orion: "brief" }) });
       }
       // Course focus: "focus on machine learning", "leave focus".
+      // Study plans: "plan my next 3 hours", "plan a study session", "start studying".
+      const NUMW: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, an: 1, a: 1 };
+      const sm = !o && t.match(/^(?:let'?s\s+)?(?:plan|schedule|make|create|start|begin)\s+(?:a\s+|my\s+|the\s+|some\s+)*(?:(?:study|studying|revision|revising)(?:\s+(?:plan|session|block|time))?|next\s+(\d+(?:\.\d+)?|one|two|three|four|five|six|an|a)\s+hours?(?:\s+of\s+study)?)(?:\s+(now|later|tonight))?$/i);
+      if (sm) {
+        const hrs = sm[1] ? (NUMW[sm[1].toLowerCase()] ?? parseFloat(sm[1])) : 0;
+        const now = /^(?:let'?s\s+)?(?:start|begin)/i.test(t) || sm[2]?.toLowerCase() === "now";
+        items.push({ key: "st", group: "Command", title: hrs ? `Plan the next ${hrs} ${hrs === 1 ? "hour" : "hours"} of study` : "Plan a study session", sub: hrs ? "Suggested from your nearest deadlines — adjust before starting" : "Choose subjects, minutes and what you'll do in each", icon: "book", color: "var(--hue-academy)", run: () => set({ palette: false, quick: { type: "study", init: { total: hrs ? Math.round(hrs * 60) : undefined, now: now || !!hrs } } }) });
+      }
       const fo = !o && t.match(/^(?:focus on|focus the app on|study|work on) (.+)$/i);
       if (fo) {
         const best = (ents?.courses ?? []).map((c) => ({ c, s: Math.max(fuzzy(fo[1], c.name), fuzzy(fo[1], c.code), courseMatch(fo[1], c) * 60) })).sort((a, b) => b.s - a.s)[0];

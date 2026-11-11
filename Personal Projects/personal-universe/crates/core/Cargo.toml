@@ -1,6 +1,6 @@
 [package]
 name = "pu-core"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "Personal Universe core: local database, indexer, document extraction, backups"
 

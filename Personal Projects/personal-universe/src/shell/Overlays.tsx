@@ -114,7 +114,7 @@ export function ActivityCenter() {
   );
 }
 
-const SHORTCUTS: [string, string][] = [["Ctrl K", "Command bar"], ["Ctrl Space", "Talk to ORION (hold)"], ["Ctrl 1–7", "Switch world"], ["Ctrl D", "New deadline"], ["Ctrl E", "New transaction"], ["Ctrl ⇧ V", "Capture clipboard"], ["Ctrl ,", "Settings"], ["F11", "Full screen"], ["Esc", "Close panel"]];
+const SHORTCUTS: [string, string][] = [["Ctrl K", "Command bar"], ["Ctrl Space", "Talk to ORION (hold)"], ["Ctrl 1–7", "Switch world"], ["Ctrl D", "New deadline"], ["Ctrl E", "New transaction"], ["Ctrl P", "Plan study"], ["Ctrl ⇧ V", "Capture clipboard"], ["Ctrl ,", "Settings"], ["F11", "Full screen"], ["Esc", "Close panel"]];
 
 export function Settings() {
   const close = () => useUI.getState().set({ settings: false });

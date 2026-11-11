@@ -177,7 +177,7 @@ function Backups() {
           <div key={b.name} className="list-row">
             <Icon name="archive" size={16} style={{ color: "var(--ink-3)", flex: "none" }} />
             <div className="col grow" style={{ gap: 0 }}><span>{fmtDate(new Date(b.modified), "long")} · {new Date(b.modified).toTimeString().slice(0, 5)}</span><span className="small faint mono truncate">{b.name}</span></div>
-            <span className="chip">{b.safety ? "before a restore" : b.auto ? "automatic" : "manual"}</span><span className="small faint num" style={{ width: 70, textAlign: "right" }}>{bytes(b.size)}</span>
+            <span className="chip">{b.upgrade ? "before an update" : b.safety ? "before a restore" : b.auto ? "automatic" : "manual"}</span><span className="small faint num" style={{ width: 70, textAlign: "right" }}>{bytes(b.size)}</span>
             {isTauri && <button className="btn sm ghost" onClick={() => attempt(() => native.reveal(b.path))}>Show file</button>}
             <Confirm className="btn sm" label="Restore" icon="undo" onConfirm={() => restore(b.name)} />
           </div>))}</div>}

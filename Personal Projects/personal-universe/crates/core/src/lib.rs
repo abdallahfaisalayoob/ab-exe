@@ -14,7 +14,7 @@ pub mod serve;
 pub mod stt;
 pub mod voice;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use rusqlite::Connection;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -41,6 +41,12 @@ impl Core {
         }
         let db_path = data_dir.join("universe.db");
         let mut conn = db::open(&db_path)?;
+        // Before changing the structure of an existing database, keep an exact copy of it.
+        let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        if version >= 1 && version < db::LATEST {
+            let dest = data_dir.join("backups").join(format!("universe_{}_before-upgrade.db", backup::stamp()));
+            conn.execute("VACUUM INTO ?", [dest.to_string_lossy()]).context("could not back up the database before upgrading it")?;
+        }
         db::migrate(&mut conn)?;
         let core = Arc::new(Core { data_dir: data_dir.to_path_buf(), db_path, conn: Mutex::new(conn), jobs: Mutex::new(Vec::new()), job_seq: AtomicU64::new(1), index_turn: Mutex::new(()), voice: Mutex::new(voice::VoiceJob::default()), listen_job: Mutex::new(voice::VoiceJob::default()), whisper: Mutex::new(None) });
         // A quiet safety net: one automatic backup per day, pruned to the latest ten.

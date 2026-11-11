@@ -5,6 +5,28 @@ use serde_json::{json, Map, Value};
 use std::path::Path;
 
 const SCHEMA_V1: &str = include_str!("schema.sql");
+pub const LATEST: i64 = 2;
+
+/// v2 — study plans: one sitting made of several subjects, each with its own time and intent.
+const SCHEMA_V2: &str = "
+CREATE TABLE IF NOT EXISTS study_plans (
+  id INTEGER PRIMARY KEY,
+  date TEXT NOT NULL,
+  start_min INTEGER NOT NULL,
+  end_min INTEGER NOT NULL,
+  rhythm TEXT NOT NULL DEFAULT '50-10',
+  state TEXT NOT NULL DEFAULT 'planned',      -- planned | running | done | cancelled
+  created_at INTEGER NOT NULL,
+  started_at INTEGER,
+  ended_at INTEGER,
+  studied_min INTEGER NOT NULL DEFAULT 0
+);
+ALTER TABLE study_sessions ADD COLUMN plan_id INTEGER REFERENCES study_plans(id) ON DELETE CASCADE;
+ALTER TABLE study_sessions ADD COLUMN seq INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE study_sessions ADD COLUMN minutes INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS study_sessions_plan ON study_sessions(plan_id);
+CREATE INDEX IF NOT EXISTS study_sessions_date ON study_sessions(date);
+";
 
 pub fn open(path: &Path) -> Result<Connection> {
     let conn = Connection::open(path).with_context(|| format!("opening database {}", path.display()))?;
@@ -22,6 +44,12 @@ pub fn migrate(conn: &mut Connection) -> Result<()> {
         let tx = conn.transaction()?;
         tx.execute_batch(SCHEMA_V1)?;
         tx.pragma_update(None, "user_version", 1)?;
+        tx.commit()?;
+    }
+    if version < 2 {
+        let tx = conn.transaction()?;
+        tx.execute_batch(SCHEMA_V2)?;
+        tx.pragma_update(None, "user_version", 2)?;
         tx.commit()?;
     }
     Ok(())
